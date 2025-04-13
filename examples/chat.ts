@@ -65,19 +65,38 @@ async function main() {
   router.queryRouter.routeQuery = async (userInput: string) => {
     try {
       // First, determine if this is a question that needs a tool
+      // Get conversation history to provide context for the decision
+      const conversationHistory = router.getMemory().getMessages();
+      let historyText = '';
+      
+      if (conversationHistory.length > 0) {
+        historyText = 'Conversation history:\n';
+        conversationHistory.forEach(msg => {
+          historyText += `${msg.role}: ${msg.content}\n`;
+        });
+        historyText += '\n';
+      }
+      
       const needsToolPrompt = `
+${historyText}
 User input: "${userInput}"
 
-Determine if this query requires using a specific tool or if it's a general knowledge question that can be answered directly.
-If it requires a tool, respond with "NEEDS_TOOL". If it can be answered directly, respond with "DIRECT_ANSWER".
+Determine if this query requires using a specific tool or if it's a general knowledge question or a question about the conversation history that can be answered directly.
 
-Example 1: "What is 5 plus 3?" -> "NEEDS_TOOL"
-Example 2: "What is the capital of France?" -> "DIRECT_ANSWER"
-Example 3: "What capital did I just ask you about?" -> "DIRECT_ANSWER"
+RULES:
+1. If the query requires mathematical calculations (like addition, subtraction, etc.), respond with "NEEDS_TOOL".
+2. If the query is about general knowledge (like "What is the capital of France?"), respond with "DIRECT_ANSWER".
+3. If the query is about the conversation history or personal information shared during the conversation (like "What is my name?"), respond with "DIRECT_ANSWER".
+4. If the query is a follow-up to previous messages, respond with "DIRECT_ANSWER".
+5. If the query is a greeting or casual conversation, respond with "DIRECT_ANSWER".
 
-For follow-up questions about previous conversation, always use "DIRECT_ANSWER".
+Examples:
+- "What is 5 plus 3?" -> "NEEDS_TOOL" (requires calculation)
+- "What is the capital of France?" -> "DIRECT_ANSWER" (general knowledge)
+- "What's my name?" -> "DIRECT_ANSWER" (personal information from conversation)
+- "What did I just ask about?" -> "DIRECT_ANSWER" (refers to conversation history)
 
-Respond with only "NEEDS_TOOL" or "DIRECT_ANSWER".
+Respond with ONLY "NEEDS_TOOL" or "DIRECT_ANSWER".
 `;
 
       const needsToolResponse = await router.getLLMProvider().generateResponse(needsToolPrompt);
@@ -127,10 +146,28 @@ Respond with only "NEEDS_TOOL" or "DIRECT_ANSWER".
   const originalExecute = router.toolExecutor.execute.bind(router.toolExecutor);
   router.toolExecutor.execute = async (serverId: string, toolName: string, parameters: Record<string, any>) => {
     if (serverId === "direct_answer" && toolName === "answer") {
-      // For direct answers, just ask the LLM
+      // For direct answers, include the conversation history
+      const conversationHistory = router.getMemory().getMessages();
+      let historyText = '';
+      
+      if (conversationHistory.length > 0) {
+        historyText = 'Conversation history:\n';
+        conversationHistory.forEach(msg => {
+          historyText += `${msg.role}: ${msg.content}\n`;
+        });
+        historyText += '\n';
+      }
+      
       const directPrompt = `
+${historyText}
 Please answer the following question directly and concisely:
 ${parameters.query}
+
+If the question refers to information shared in the conversation history (like the user's name, preferences, or previous topics), 
+use that information in your response.
+
+If the user is asking about personal information they shared earlier (like their name), 
+acknowledge and use that information respectfully.
 `;
       const directAnswer = await router.getLLMProvider().generateResponse(directPrompt);
       return {

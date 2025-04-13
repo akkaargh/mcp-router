@@ -101,6 +101,37 @@ export class QueryRouter {
       historyText += '\n';
     }
     
+    // First, check if this query can be answered directly from conversation history
+    // or if it's about personal information shared during the conversation
+    const personalInfoPrompt = `
+${historyText}
+User input: "${userInput}"
+
+Is this query:
+1. About information shared in the conversation history (like the user's name, preferences, etc.)
+2. A follow-up question referring to previous messages
+3. A request for personal information that might have been shared earlier
+
+If ANY of these are true, respond with "USE_CONVERSATION_HISTORY".
+Otherwise, respond with "PROCEED_WITH_TOOLS".
+
+Respond with ONLY "USE_CONVERSATION_HISTORY" or "PROCEED_WITH_TOOLS".
+`;
+
+    const personalInfoDecision = await this.llmProvider.generateResponse(personalInfoPrompt);
+    
+    if (personalInfoDecision.trim().includes("USE_CONVERSATION_HISTORY")) {
+      console.log('Query can be answered directly from conversation history');
+      return {
+        serverId: "direct_answer",
+        toolName: "answer",
+        parameters: { 
+          query: userInput
+        }
+      };
+    }
+    
+    // If we get here, proceed with tool selection
     const prompt = `
 ${historyText}
 User input: "${userInput}"
@@ -117,9 +148,6 @@ For example, if the user asks "What is 5 plus 3?", you should identify that:
 
 If the user previously asked about adding numbers and now provides the numbers (like "five and 13"), 
 you should understand from context that they want to use the add tool with those numbers.
-
-If the user is asking a follow-up question about previous conversation (like "what capital did I just ask you about?"),
-respond with: "This is a follow-up question about conversation history."
 
 If the user's query is ambiguous or missing required parameters (like "I want to add two numbers" without specifying which numbers), respond with:
 "I need more information. Which specific numbers would you like to add?"
@@ -140,7 +168,6 @@ IMPORTANT:
 3. If any required parameters are missing, DO NOT return JSON. Instead, ask for the missing information.
 4. Use the conversation history to understand the context of the current request.
 5. Convert word-form numbers (like "five") to numeric values (like 5).
-6. If the query is a follow-up about previous conversation, DO NOT return JSON. Instead, indicate it's a follow-up question.
 `;
 
     const response = await this.llmProvider.generateResponse(prompt);
@@ -165,22 +192,6 @@ IMPORTANT:
           };
         }
         
-        // Handle follow-up questions about previous conversation
-        if (response.toLowerCase().includes('conversation history') || 
-            response.toLowerCase().includes('previous question') ||
-            response.toLowerCase().includes('asked about') ||
-            response.toLowerCase().includes('referring to')) {
-          
-          console.log('Detected follow-up question about conversation history');
-          return {
-            serverId: "direct_answer",
-            toolName: "answer",
-            parameters: { 
-              query: `The user asked: "${userInput}". Please answer based on our conversation history.` 
-            }
-          };
-        }
-        
         // If it's not a request for more information, try to extract JSON from the response
         const jsonMatch = response.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
@@ -188,13 +199,13 @@ IMPORTANT:
           const extractedJson = jsonMatch[0];
           return this.processJsonResponse(extractedJson, userInput);
         } else {
-          // If we can't extract JSON and it's not a special case, use direct answer as fallback
+          // If we can't extract JSON, use direct answer as fallback
           console.log('Using direct answer as fallback for non-JSON response');
           return {
             serverId: "direct_answer",
             toolName: "answer",
             parameters: { 
-              query: `The user asked: "${userInput}". Please answer based on the conversation history and your knowledge.` 
+              query: userInput
             }
           };
         }
@@ -217,30 +228,13 @@ IMPORTANT:
         };
       }
       
-      // For follow-up questions or questions about previous conversation
-      if (userInput.toLowerCase().includes('previous') || 
-          userInput.toLowerCase().includes('before') ||
-          userInput.toLowerCase().includes('last time') ||
-          userInput.toLowerCase().includes('just') ||
-          userInput.toLowerCase().includes('earlier')) {
-        
-        console.log('Detected possible follow-up question, using direct answer');
-        return {
-          serverId: "direct_answer",
-          toolName: "answer",
-          parameters: { 
-            query: `The user asked: "${userInput}". Please answer based on our conversation history.` 
-          }
-        };
-      }
-      
-      // Fallback to direct answer instead of throwing an error
+      // Simplified fallback - just use direct answer with the original query
       console.log('Using direct answer as fallback for error case');
       return {
         serverId: "direct_answer",
         toolName: "answer",
         parameters: { 
-          query: `The user asked: "${userInput}". Please provide a helpful response.` 
+          query: userInput
         }
       };
     }
