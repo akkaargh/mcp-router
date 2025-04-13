@@ -141,6 +141,7 @@ export class QueryRouter {
     serverId: string;
     toolName: string;
     parameters: Record<string, any>;
+    directResponse?: string;
   }> {
     // Get formatted tool descriptions and conversation history
     const toolsDescription = this.getToolsDescription();
@@ -162,6 +163,16 @@ ${toolsDescription}
 Based on the above, decide whether to:
 1. Respond directly using the conversation history or general knowledge.
 2. Invoke an appropriate tool to fulfill the user's request.
+
+IMPORTANT: You should respond directly with a complete, informative answer for:
+1. Questions about available tools or system capabilities
+2. General knowledge questions (e.g., "What is the capital of France?")
+3. Requests for information or explanations that don't require external data
+4. Questions about the conversation history
+5. Requests for opinions, advice, or creative content that you can generate
+6. ANY query that doesn't specifically require a tool to answer
+
+Only suggest using a tool when the user's request CANNOT be fulfilled with your existing knowledge or when a specific computation or external data access is required. Your goal is to provide helpful, accurate responses directly whenever possible.
 
 Respond in the following JSON format:
 
@@ -246,8 +257,9 @@ For tool invocation with missing parameters:
           serverId: "direct_answer",
           toolName: "answer",
           parameters: { 
-            query: decision.response || userInput
-          }
+            query: "" // Empty query since we'll use directResponse
+          },
+          directResponse: decision.response // Include the complete response
         };
       }
       

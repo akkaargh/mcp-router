@@ -171,7 +171,14 @@ export class MCPLLMRouter {
         toolName: routingInfo.toolName,
         parameterCount: Object.keys(routingInfo.parameters).length
       });
-      
+    
+      // If we have a direct response from the query router, use it
+      if (routingInfo.directResponse) {
+        console.log('Using direct response from query router');
+        this.addToMemory('assistant', routingInfo.directResponse);
+        return routingInfo.directResponse;
+      }
+    
       // Execute the tool
       console.log(`Executing tool: ${routingInfo.toolName} on server: ${routingInfo.serverId}`);
       const result = await this.toolExecutor.execute(
