@@ -8,7 +8,8 @@
     "build": "tsc",
     "test": "jest",
     "lint": "eslint src/**/*.ts",
-    "start": "ts-node examples/basic-usage.ts"
+    "start": "ts-node examples/basic-usage.ts",
+    "chat": "ts-node examples/chat.ts"
   },
   "keywords": [
     "mcp",
