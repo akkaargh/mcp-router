@@ -16,7 +16,7 @@ export class ConfigManager {
   }
 
   static getDefaultAnthropicModel(): string {
-    return process.env.DEFAULT_ANTHROPIC_MODEL || 'claude-2';
+    return process.env.DEFAULT_ANTHROPIC_MODEL || 'claude-3-7-sonnet-20240620';
   }
 
   static getLogLevel(): string {

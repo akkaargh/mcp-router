@@ -2,7 +2,7 @@ import { LLMProvider } from './index';
 
 export class AnthropicProvider implements LLMProvider {
   private apiKey: string = '';
-  private model: string = 'claude-2';
+  private model: string = 'claude-3-7-sonnet-20240620';
 
   setApiKey(apiKey: string): void {
     this.apiKey = apiKey;

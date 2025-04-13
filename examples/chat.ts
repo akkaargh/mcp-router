@@ -12,7 +12,7 @@ async function main() {
   console.log('---------------------------------------------');
 
   // Create a new router instance with memory
-  const router = new MCPLLMRouter('openai', 'buffer', { maxMessages: 10 });
+  const router = new MCPLLMRouter('anthropic', 'buffer', { maxMessages: 10 });
   
   // Register default servers and flows
   router.registerDefaultServers();
