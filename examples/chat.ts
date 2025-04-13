@@ -64,57 +64,8 @@ async function main() {
   const originalRouteQuery = router.queryRouter.routeQuery.bind(router.queryRouter);
   router.queryRouter.routeQuery = async (userInput: string) => {
     try {
-      // First, determine if this is a question that needs a tool
-      // Get conversation history to provide context for the decision
-      const conversationHistory = router.getMemory().getMessages();
-      let historyText = '';
-      
-      if (conversationHistory.length > 0) {
-        historyText = 'Conversation history:\n';
-        conversationHistory.forEach(msg => {
-          historyText += `${msg.role}: ${msg.content}\n`;
-        });
-        historyText += '\n';
-      }
-      
-      const needsToolPrompt = `
-${historyText}
-User input: "${userInput}"
-
-Determine if this query requires using a specific tool or if it's a general knowledge question or a question about the conversation history that can be answered directly.
-
-RULES:
-1. If the query requires mathematical calculations (like addition, subtraction, etc.), respond with "NEEDS_TOOL".
-2. If the query is about general knowledge (like "What is the capital of France?"), respond with "DIRECT_ANSWER".
-3. If the query is about the conversation history or personal information shared during the conversation (like "What is my name?"), respond with "DIRECT_ANSWER".
-4. If the query is a follow-up to previous messages, respond with "DIRECT_ANSWER".
-5. If the query is a greeting or casual conversation, respond with "DIRECT_ANSWER".
-
-Examples:
-- "What is 5 plus 3?" -> "NEEDS_TOOL" (requires calculation)
-- "What is the capital of France?" -> "DIRECT_ANSWER" (general knowledge)
-- "What's my name?" -> "DIRECT_ANSWER" (personal information from conversation)
-- "What did I just ask about?" -> "DIRECT_ANSWER" (refers to conversation history)
-
-Respond with ONLY "NEEDS_TOOL" or "DIRECT_ANSWER".
-`;
-
-      const needsToolResponse = await router.getLLMProvider().generateResponse(needsToolPrompt);
-      console.log(`Tool decision: ${needsToolResponse.trim()}`);
-      
-      if (needsToolResponse.trim().includes("DIRECT_ANSWER")) {
-        console.log('Using direct answer (no tool needed)');
-        // For direct questions, create a special routing that doesn't use any tool
-        return {
-          serverId: "direct_answer",
-          toolName: "answer",
-          parameters: { query: userInput }
-        };
-      } else {
-        console.log('Using tool-based answer');
-        // For tool-based questions, use the original routing logic
-        return await originalRouteQuery(userInput);
-      }
+      // Use the improved QueryRouter directly - it now handles both direct answers and tool-based answers
+      return await originalRouteQuery(userInput);
     } catch (error) {
       console.error('Error in routing query:', error);
       throw error;
@@ -146,29 +97,8 @@ Respond with ONLY "NEEDS_TOOL" or "DIRECT_ANSWER".
   const originalExecute = router.toolExecutor.execute.bind(router.toolExecutor);
   router.toolExecutor.execute = async (serverId: string, toolName: string, parameters: Record<string, any>) => {
     if (serverId === "direct_answer" && toolName === "answer") {
-      // For direct answers, include the conversation history
-      const conversationHistory = router.getMemory().getMessages();
-      let historyText = '';
-      
-      if (conversationHistory.length > 0) {
-        historyText = 'Conversation history:\n';
-        conversationHistory.forEach(msg => {
-          historyText += `${msg.role}: ${msg.content}\n`;
-        });
-        historyText += '\n';
-      }
-      
-      const directPrompt = `
-${historyText}
-Please answer the following question directly and concisely:
-${parameters.query}
-
-If the question refers to information shared in the conversation history (like the user's name, preferences, or previous topics), 
-use that information in your response.
-
-If the user is asking about personal information they shared earlier (like their name), 
-acknowledge and use that information respectfully.
-`;
+      // The query router now provides a more specific response for direct answers
+      const directPrompt = parameters.query;
       const directAnswer = await router.getLLMProvider().generateResponse(directPrompt);
       return {
         content: [{ type: "text", text: directAnswer }]

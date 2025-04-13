@@ -66,6 +66,13 @@ async function main() {
     
     const response = await router.processQuery(userQuery);
     console.log(`Response: ${response}`);
+    
+    // Try a follow-up query that should use conversation history
+    const followUpQuery = 'What calculation did I just ask you to perform?';
+    console.log(`\nFollow-up query: ${followUpQuery}`);
+    
+    const followUpResponse = await router.processQuery(followUpQuery);
+    console.log(`Response: ${followUpResponse}`);
   } catch (error) {
     console.error('Error:', error);
   }

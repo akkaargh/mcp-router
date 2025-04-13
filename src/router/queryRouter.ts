@@ -1,6 +1,19 @@
 import { LLMProvider } from '../llm';
-import { ServerRegistry } from '../registry/serverRegistry';
+import { ServerRegistry, MCPServerConfig } from '../registry/serverRegistry';
 import { ConversationMemory } from '../memory/conversationMemory';
+
+// Define the structured response format
+interface ToolDecisionResponse {
+  action: 'respond_directly' | 'call_tool';
+  response: string;
+  reasoning: string;
+  tool?: {
+    serverId: string;
+    name: string;
+    parameters: Record<string, any>;
+    missing_parameters: string[];
+  };
+}
 
 export class QueryRouter {
   constructor(
@@ -9,65 +22,15 @@ export class QueryRouter {
     private memory: ConversationMemory
   ) {}
 
-  private processJsonResponse(jsonString: string, userInput: string): {
-    serverId: string;
-    toolName: string;
-    parameters: Record<string, any>;
-  } {
-    try {
-      // Parse the JSON string
-      const parsedResponse = JSON.parse(jsonString);
-      console.log('Parsed routing response:', parsedResponse);
-      
-      // Validate that we have the required fields
-      if (!parsedResponse.serverId || !parsedResponse.toolName || !parsedResponse.parameters) {
-        throw new Error('Missing required fields in LLM response');
-      }
-      
-      // Ensure parameters are the correct type (convert strings to numbers if needed)
-      const server = this.registry.getServerById(parsedResponse.serverId);
-      if (!server) {
-        throw new Error(`Server with ID ${parsedResponse.serverId} not found`);
-      }
-      
-      const tool = server.tools.find(t => t.name === parsedResponse.toolName);
-      if (!tool) {
-        throw new Error(`Tool ${parsedResponse.toolName} not found on server ${parsedResponse.serverId}`);
-      }
-      
-      // Log parameter extraction
-      console.log('Extracted parameters:', {
-        original: parsedResponse.parameters,
-        types: Object.entries(parsedResponse.parameters).reduce((acc, [key, value]) => {
-          acc[key] = typeof value;
-          return acc;
-        }, {} as Record<string, string>)
-      });
-      
-      // Return the validated and potentially converted parameters
-      return {
-        serverId: parsedResponse.serverId,
-        toolName: parsedResponse.toolName,
-        parameters: parsedResponse.parameters
-      };
-    } catch (error) {
-      console.error('Failed to parse JSON response:', error);
-      throw error;
-    }
-  }
-
-  async routeQuery(userInput: string): Promise<{
-    serverId: string;
-    toolName: string;
-    parameters: Record<string, any>;
-  }> {
-    // Get all available servers and their tools
+  /**
+   * Generate a formatted description of all available tools
+   */
+  private getToolsDescription(): string {
     const servers = this.registry.getServers();
-    
-    // Construct a prompt that includes all available tools with their parameter schemas
     let toolsDescription = '';
+    
     servers.forEach(server => {
-      toolsDescription += `Server: ${server.name} (${server.id})\n`;
+      toolsDescription += `Server: ${server.name} (ID: ${server.id})\n`;
       toolsDescription += `Description: ${server.description}\n`;
       toolsDescription += 'Available tools:\n';
       
@@ -76,11 +39,12 @@ export class QueryRouter {
         if (tool.paramSchema) {
           const params = Object.entries(tool.paramSchema.shape || {});
           if (params.length > 0) {
-            toolsDescription += `  Parameters:\n`;
+            toolsDescription += `  Required Parameters:\n`;
             params.forEach(([paramName, paramSchema]) => {
               // Cast to any to access the description property safely
               const description = (paramSchema as any).description || '';
-              toolsDescription += `    - ${paramName}: ${description}\n`;
+              const type = (paramSchema as any)._def?.typeName || 'unknown';
+              toolsDescription += `    - ${paramName} (${type}): ${description}\n`;
             });
           }
         }
@@ -89,152 +53,236 @@ export class QueryRouter {
       toolsDescription += '\n';
     });
     
-    // Get conversation history
+    return toolsDescription;
+  }
+
+  /**
+   * Get formatted conversation history
+   */
+  private getConversationHistoryText(): string {
     const conversationHistory = this.memory.getMessages();
     let historyText = '';
     
     if (conversationHistory.length > 0) {
-      historyText = 'Conversation history:\n';
+      historyText = 'Conversation History:\n';
       conversationHistory.forEach(msg => {
         historyText += `${msg.role}: ${msg.content}\n`;
       });
       historyText += '\n';
     }
     
-    // First, check if this query can be answered directly from conversation history
-    // or if it's about personal information shared during the conversation
-    const personalInfoPrompt = `
-${historyText}
-User input: "${userInput}"
-
-Is this query:
-1. About information shared in the conversation history (like the user's name, preferences, etc.)
-2. A follow-up question referring to previous messages
-3. A request for personal information that might have been shared earlier
-
-If ANY of these are true, respond with "USE_CONVERSATION_HISTORY".
-Otherwise, respond with "PROCEED_WITH_TOOLS".
-
-Respond with ONLY "USE_CONVERSATION_HISTORY" or "PROCEED_WITH_TOOLS".
-`;
-
-    const personalInfoDecision = await this.llmProvider.generateResponse(personalInfoPrompt);
-    
-    if (personalInfoDecision.trim().includes("USE_CONVERSATION_HISTORY")) {
-      console.log('Query can be answered directly from conversation history');
-      return {
-        serverId: "direct_answer",
-        toolName: "answer",
-        parameters: { 
-          query: userInput
-        }
-      };
-    }
-    
-    // If we get here, proceed with tool selection
-    const prompt = `
-${historyText}
-User input: "${userInput}"
-
-Available tools:
-${toolsDescription}
-
-Based on the user input and conversation history, determine which tool would be most appropriate to use.
-Extract any relevant numbers or values from the user input to use as parameters.
-
-For example, if the user asks "What is 5 plus 3?", you should identify that:
-- The "add" tool on the "calculator" server is appropriate
-- The parameters should be: { "a": 5, "b": 3 }
-
-If the user previously asked about adding numbers and now provides the numbers (like "five and 13"), 
-you should understand from context that they want to use the add tool with those numbers.
-
-If the user's query is ambiguous or missing required parameters (like "I want to add two numbers" without specifying which numbers), respond with:
-"I need more information. Which specific numbers would you like to add?"
-
-Return your response in the following JSON format ONLY if you have all required parameters AND the query requires a tool:
-{
-  "serverId": "the ID of the server",
-  "toolName": "the name of the tool",
-  "parameters": {
-    // Include all required parameters with their correct types
-    // For numeric parameters, use actual numbers, not strings
+    return historyText;
   }
-}
 
-IMPORTANT: 
-1. Make sure to include all required parameters with their correct types.
-2. For numeric parameters, use actual numbers (e.g., 5), not strings (e.g., "5").
-3. If any required parameters are missing, DO NOT return JSON. Instead, ask for the missing information.
-4. Use the conversation history to understand the context of the current request.
-5. Convert word-form numbers (like "five") to numeric values (like 5).
-`;
-
-    const response = await this.llmProvider.generateResponse(prompt);
-    
+  /**
+   * Parse and validate the LLM's JSON response
+   */
+  private parseToolDecisionResponse(jsonString: string): ToolDecisionResponse {
     try {
-      console.log('Raw LLM routing response:', response);
+      // Parse the JSON string
+      const parsedResponse = JSON.parse(jsonString);
+      console.log('Parsed tool decision response:', parsedResponse);
       
-      // Check if the response is not in JSON format
-      if (!response.trim().startsWith('{')) {
-        // Try to handle ambiguous queries by asking for more information
-        if (response.toLowerCase().includes('need more information') || 
-            response.toLowerCase().includes('which numbers') ||
-            response.toLowerCase().includes('please specify')) {
-          
-          console.log('Detected ambiguous query that needs more information');
-          return {
-            serverId: "direct_answer",
-            toolName: "answer",
-            parameters: { 
-              query: `The user asked: "${userInput}". Please ask for the specific information needed to complete this request.` 
-            }
-          };
+      // Validate that we have the required fields
+      if (!parsedResponse.action || !parsedResponse.response || !parsedResponse.reasoning) {
+        throw new Error('Missing required fields in LLM response');
+      }
+      
+      // If action is call_tool, validate tool information
+      if (parsedResponse.action === 'call_tool') {
+        if (!parsedResponse.tool || !parsedResponse.tool.serverId || !parsedResponse.tool.name) {
+          throw new Error('Missing tool information in LLM response');
         }
         
-        // If it's not a request for more information, try to extract JSON from the response
-        const jsonMatch = response.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          console.log('Extracted JSON from non-JSON response');
-          const extractedJson = jsonMatch[0];
-          return this.processJsonResponse(extractedJson, userInput);
-        } else {
-          // If we can't extract JSON, use direct answer as fallback
-          console.log('Using direct answer as fallback for non-JSON response');
-          return {
-            serverId: "direct_answer",
-            toolName: "answer",
-            parameters: { 
-              query: userInput
-            }
-          };
+        // Ensure the server and tool exist
+        const server = this.registry.getServerById(parsedResponse.tool.serverId);
+        if (!server) {
+          throw new Error(`Server with ID ${parsedResponse.tool.serverId} not found`);
+        }
+        
+        const tool = server.tools.find(t => t.name === parsedResponse.tool.name);
+        if (!tool) {
+          throw new Error(`Tool ${parsedResponse.tool.name} not found on server ${parsedResponse.tool.serverId}`);
+        }
+        
+        // Ensure parameters and missing_parameters are present
+        if (!parsedResponse.tool.parameters) {
+          parsedResponse.tool.parameters = {};
+        }
+        
+        if (!parsedResponse.tool.missing_parameters) {
+          parsedResponse.tool.missing_parameters = [];
         }
       }
       
-      // Parse the LLM's response to extract the routing information
-      return this.processJsonResponse(response, userInput);
+      return parsedResponse as ToolDecisionResponse;
     } catch (error) {
-      console.error('Failed to parse LLM response:', error);
+      console.error('Failed to parse tool decision response:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Extract JSON from a text response that might contain additional content
+   */
+  private extractJsonFromResponse(response: string): string | null {
+    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      return jsonMatch[0];
+    }
+    return null;
+  }
+
+  /**
+   * Route the user query to the appropriate tool or direct response
+   */
+  async routeQuery(userInput: string): Promise<{
+    serverId: string;
+    toolName: string;
+    parameters: Record<string, any>;
+  }> {
+    // Get formatted tool descriptions and conversation history
+    const toolsDescription = this.getToolsDescription();
+    const historyText = this.getConversationHistoryText();
+    
+    // Construct the prompt for the LLM
+    const prompt = `
+You are an intelligent assistant designed to determine whether a user's query requires invoking a tool or can be answered directly based on the conversation history. Analyze the following information and decide the appropriate action.
+
+${historyText}
+User input: "${userInput}"
+
+Available Tools:
+${toolsDescription}
+
+Based on the above, decide whether to:
+1. Respond directly using the conversation history or general knowledge.
+2. Invoke an appropriate tool to fulfill the user's request.
+
+Respond in the following JSON format:
+
+{
+  "action": "respond_directly" | "call_tool",
+  "response": "Your message to the user explaining the action taken.",
+  "reasoning": "Explanation of why this action is appropriate.",
+  "tool": {
+    "serverId": "server_id",
+    "name": "tool_name",
+    "parameters": {
+      "param1": "value1",
+      "param2": "value2"
+    },
+    "missing_parameters": ["param3"]
+  }
+}
+
+Notes:
+- If action is "respond_directly", the "tool" field can be omitted.
+- If action is "call_tool" and all required parameters are provided, proceed with the tool invocation.
+- If action is "call_tool" but some parameters are missing, list them in "missing_parameters" and include a response that prompts the user for the necessary information.
+- For numeric parameters, use actual numbers (e.g., 5), not strings (e.g., "5").
+- Convert word-form numbers (like "five") to numeric values (like 5).
+- Use the conversation history to understand the context of the current request.
+
+Examples:
+
+For direct response:
+{
+  "action": "respond_directly",
+  "response": "Based on our conversation, your name is Eric.",
+  "reasoning": "The user is asking about information shared earlier in the conversation history."
+}
+
+For tool invocation with all parameters:
+{
+  "action": "call_tool",
+  "response": "I'll calculate 5 plus 3 for you.",
+  "reasoning": "The user is asking for a mathematical calculation that requires the add tool.",
+  "tool": {
+    "serverId": "calculator",
+    "name": "add",
+    "parameters": {
+      "a": 5,
+      "b": 3
+    },
+    "missing_parameters": []
+  }
+}
+
+For tool invocation with missing parameters:
+{
+  "action": "call_tool",
+  "response": "I need more information. Which specific numbers would you like to add?",
+  "reasoning": "The user wants to perform addition but hasn't specified the numbers.",
+  "tool": {
+    "serverId": "calculator",
+    "name": "add",
+    "parameters": {},
+    "missing_parameters": ["a", "b"]
+  }
+}
+`;
+
+    try {
+      // Get the LLM's decision
+      console.log('Sending tool decision prompt to LLM...');
+      const response = await this.llmProvider.generateResponse(prompt);
+      console.log('Raw LLM tool decision response:', response);
       
-      // For ambiguous queries like "I want to add 2 numbers", provide a helpful response
-      if (userInput.toLowerCase().includes('add') && userInput.toLowerCase().includes('numbers')) {
-        console.log('Detected ambiguous math query, asking for clarification');
+      // Extract JSON from the response if needed
+      const jsonString = this.extractJsonFromResponse(response) || response;
+      
+      // Parse the response
+      const decision = this.parseToolDecisionResponse(jsonString);
+      
+      // Handle direct responses
+      if (decision.action === 'respond_directly') {
+        console.log('LLM decided to respond directly');
         return {
           serverId: "direct_answer",
           toolName: "answer",
           parameters: { 
-            query: `The user said: "${userInput}". Ask which specific numbers they want to add.` 
+            query: decision.response || userInput
           }
         };
       }
       
-      // Simplified fallback - just use direct answer with the original query
-      console.log('Using direct answer as fallback for error case');
+      // Handle tool invocations
+      if (decision.action === 'call_tool' && decision.tool) {
+        console.log('LLM decided to use a tool:', decision.tool.name);
+        
+        // Check if there are missing parameters
+        if (decision.tool.missing_parameters && decision.tool.missing_parameters.length > 0) {
+          console.log('Tool has missing parameters:', decision.tool.missing_parameters);
+          return {
+            serverId: "direct_answer",
+            toolName: "answer",
+            parameters: { 
+              query: decision.response || `I need more information to ${decision.tool.name}. Please provide: ${decision.tool.missing_parameters.join(', ')}.`
+            }
+          };
+        }
+        
+        // All parameters are present, proceed with tool invocation
+        return {
+          serverId: decision.tool.serverId,
+          toolName: decision.tool.name,
+          parameters: decision.tool.parameters
+        };
+      }
+      
+      // This should not happen if the LLM follows the format
+      throw new Error('Invalid decision format from LLM');
+      
+    } catch (error) {
+      console.error('Error in routing query:', error);
+      
+      // Fallback to direct answer
       return {
         serverId: "direct_answer",
         toolName: "answer",
         parameters: { 
-          query: userInput
+          query: `I'm having trouble understanding how to process your request: "${userInput}". Could you please rephrase or provide more details?`
         }
       };
     }
