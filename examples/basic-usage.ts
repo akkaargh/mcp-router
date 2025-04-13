@@ -1,5 +1,6 @@
 import { MCPLLMRouter } from '../src';
 import dotenv from 'dotenv';
+import chalk from 'chalk';
 
 // Load environment variables
 dotenv.config();
@@ -26,21 +27,21 @@ async function main() {
     console.log('Routing information:', JSON.stringify(routingInfo, null, 2));
     
     const response = await router.processQuery(userQuery);
-    console.log(`Response: ${response}`);
+    console.log(`Response: ${chalk.white(response)}`);
     
     // Try a follow-up query that should use conversation history
     const followUpQuery = 'What calculation did I just ask you to perform?';
     console.log(`\nFollow-up query: ${followUpQuery}`);
     
     const followUpResponse = await router.processQuery(followUpQuery);
-    console.log(`Response: ${followUpResponse}`);
+    console.log(`Response: ${chalk.white(followUpResponse)}`);
     
     // Try a flow-related query
     const flowQuery = 'I want to create a new server for weather data';
     console.log(`\nFlow query: ${flowQuery}`);
     
     const flowResponse = await router.processQuery(flowQuery);
-    console.log(`Response: ${flowResponse}`);
+    console.log(`Response: ${chalk.white(flowResponse)}`);
   } catch (error) {
     console.error('Error:', error);
   }

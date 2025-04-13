@@ -1,6 +1,7 @@
 import { MCPLLMRouter } from '../src';
 import dotenv from 'dotenv';
 import readline from 'readline';
+import chalk from 'chalk';
 
 // Load environment variables
 dotenv.config();
@@ -45,10 +46,10 @@ async function main() {
       try {
         console.log('Processing...');
         const response = await router.processQuery(userInput);
-        console.log(response);
+        console.log(chalk.white(response));
       } catch (error) {
         console.error('Error:', error);
-        console.log('Sorry, I encountered an error processing your request.');
+        console.log(chalk.red('Sorry, I encountered an error processing your request.'));
       }
 
       // Continue the loop
@@ -58,7 +59,7 @@ async function main() {
 
   // Start with an initial prompt to the Server Builder flow
   const initialResponse = await router.processQuery('I want to create a new MCP server for weather data');
-  console.log(initialResponse);
+  console.log(chalk.white(initialResponse));
 
   // Continue the conversation
   askQuestion();
