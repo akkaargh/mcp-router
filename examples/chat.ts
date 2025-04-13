@@ -43,6 +43,10 @@ async function main() {
         console.log('  exit, quit - Exit the chat interface');
         console.log('  help - Show this help message');
         console.log('  clear - Clear the conversation history');
+        console.log('  list servers - Show all available servers');
+        console.log('  server status - Check which servers are active');
+        console.log('  activate server <id> - Enable a disabled server');
+        console.log('  deactivate server <id> - Temporarily disable a server');
         console.log('\nAvailable flows:');
         router.getFlowRegistry().getFlows().forEach(flow => {
           console.log(`  ${flow.name} - ${flow.description}`);

@@ -35,7 +35,8 @@ export class FlowExecutor {
       serverRegistry: this.serverRegistry,
       memory: this.memory,
       userQuery,
-      params
+      params,
+      toolExecutor: this.serverRegistry.getToolExecutor() // Pass the tool executor for file operations
     };
 
     // Execute the flow

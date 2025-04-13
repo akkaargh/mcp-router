@@ -15,13 +15,32 @@ interface MCPServerConfig {
     description: string;
     paramSchema?: z.ZodObject<any>;
   }>;
+  disabled?: boolean; // Flag to indicate if the server is disabled
+  config?: Record<string, string>; // Configuration values like API keys
 }
 
 export class ServerRegistry {
   private servers: MCPServerConfig[] = [];
+  private toolExecutor: any; // Reference to the tool executor
 
   addServer(config: MCPServerConfig) {
-    this.servers.push(config);
+    // Check if server with this ID already exists
+    const existingIndex = this.servers.findIndex(s => s.id === config.id);
+    if (existingIndex >= 0) {
+      // Replace existing server
+      this.servers[existingIndex] = config;
+    } else {
+      // Add new server
+      this.servers.push(config);
+    }
+  }
+  
+  setToolExecutor(executor: any) {
+    this.toolExecutor = executor;
+  }
+  
+  getToolExecutor() {
+    return this.toolExecutor;
   }
 
   getServers(): MCPServerConfig[] {

@@ -52,8 +52,10 @@ export class MCPLLMRouter {
     this.flowRegistry = new FlowRegistry();
 
     // Initialize routers and executors
-    this.queryRouter = new QueryRouter(this.llmProvider, this.serverRegistry, this.memory);
     this.toolExecutor = new ToolExecutor(this.serverRegistry);
+    this.serverRegistry.setToolExecutor(this.toolExecutor); // Set tool executor reference
+    
+    this.queryRouter = new QueryRouter(this.llmProvider, this.serverRegistry, this.memory);
     this.flowRouter = new FlowRouter(this.llmProvider, this.flowRegistry, this.memory);
     this.flowExecutor = new FlowExecutor(this.flowRegistry, this.llmProvider, this.serverRegistry, this.memory);
     this.responseFormatter = new ResponseFormatter(this.llmProvider, this.memory);
@@ -117,6 +119,19 @@ export class MCPLLMRouter {
     try {
       console.log('\n--- Processing Query ---');
       console.log(`User input: "${userInput}"`);
+      
+      // Check for special commands
+      if (userInput.toLowerCase() === 'list servers') {
+        return this.listServers();
+      } else if (userInput.toLowerCase() === 'server status') {
+        return this.getServerStatus();
+      } else if (userInput.toLowerCase().startsWith('activate server ')) {
+        const serverId = userInput.substring('activate server '.length).trim();
+        return this.activateServer(serverId);
+      } else if (userInput.toLowerCase().startsWith('deactivate server ')) {
+        const serverId = userInput.substring('deactivate server '.length).trim();
+        return this.deactivateServer(serverId);
+      }
       
       // Add the user's message to memory
       this.addToMemory('user', userInput);
@@ -185,6 +200,86 @@ export class MCPLLMRouter {
       
       return errorResponse;
     }
+  }
+  
+  // Server management methods
+  private listServers(): string {
+    const servers = this.serverRegistry.getServers();
+    if (servers.length === 0) {
+      return "No servers are currently registered.";
+    }
+    
+    let response = "Available servers:\n\n";
+    servers.forEach(server => {
+      const status = server.disabled ? "🔴 Disabled" : "🟢 Active";
+      response += `${server.name} (ID: ${server.id}) - ${status}\n`;
+      response += `Description: ${server.description}\n`;
+      response += "Tools:\n";
+      
+      server.tools.forEach(tool => {
+        response += `- ${tool.name}: ${tool.description}\n`;
+      });
+      
+      response += "\n";
+    });
+    
+    response += "You can manage servers with these commands:\n";
+    response += "- 'activate server <id>' - Enable a disabled server\n";
+    response += "- 'deactivate server <id>' - Temporarily disable a server\n";
+    response += "- 'server status' - Check which servers are active\n";
+    
+    return response;
+  }
+  
+  private getServerStatus(): string {
+    const servers = this.serverRegistry.getServers();
+    if (servers.length === 0) {
+      return "No servers are currently registered.";
+    }
+    
+    let response = "Server Status:\n\n";
+    const active = servers.filter(s => !s.disabled);
+    const disabled = servers.filter(s => s.disabled);
+    
+    response += `Active Servers (${active.length}):\n`;
+    active.forEach(server => {
+      response += `- ${server.name} (ID: ${server.id})\n`;
+    });
+    
+    response += `\nDisabled Servers (${disabled.length}):\n`;
+    disabled.forEach(server => {
+      response += `- ${server.name} (ID: ${server.id})\n`;
+    });
+    
+    return response;
+  }
+  
+  private activateServer(serverId: string): string {
+    const server = this.serverRegistry.getServerById(serverId);
+    if (!server) {
+      return `Server with ID "${serverId}" not found. Use 'list servers' to see available servers.`;
+    }
+    
+    if (!server.disabled) {
+      return `Server "${server.name}" is already active.`;
+    }
+    
+    server.disabled = false;
+    return `Server "${server.name}" has been activated and is now available for use.`;
+  }
+  
+  private deactivateServer(serverId: string): string {
+    const server = this.serverRegistry.getServerById(serverId);
+    if (!server) {
+      return `Server with ID "${serverId}" not found. Use 'list servers' to see available servers.`;
+    }
+    
+    if (server.disabled) {
+      return `Server "${server.name}" is already disabled.`;
+    }
+    
+    server.disabled = true;
+    return `Server "${server.name}" has been deactivated and will not be used for query routing.`;
   }
 }
 

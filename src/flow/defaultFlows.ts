@@ -17,7 +17,7 @@ export const serverBuilderFlow: Flow = {
   },
   
   execute: async (context: FlowContext): Promise<FlowResult> => {
-    const { llmProvider, userQuery, params, memory } = context;
+    const { llmProvider, userQuery, params, memory, serverRegistry, toolExecutor } = context;
     
     // Initialize or update server details
     const serverDetails = params.serverDetails || {};
@@ -138,47 +138,180 @@ ${JSON.stringify(serverDetails, null, 2)}
 
 Generate complete, working TypeScript code for this MCP server using the @modelcontextprotocol/sdk package.
 The code should:
-1. Import necessary dependencies
-2. Create an MCP server instance
-3. Define all the tools mentioned in the conversation
-4. Connect the server using StdioServerTransport
+1. Import necessary dependencies:
+   - import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+   - import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+   - import { z } from "zod";
+
+2. Create an MCP server instance:
+   - const server = new McpServer({ name: "Server Name", version: "1.0.0" });
+
+3. Define all the tools mentioned in the conversation using the server.tool() method:
+   - server.tool("tool-name", { param: z.string() }, async ({ param }) => { ... });
+
+4. Connect the server using StdioServerTransport:
+   - const transport = new StdioServerTransport();
+   - await server.connect(transport);
+
 5. Be ready to save to a file in the mcp-servers folder
+
+IMPORTANT: Follow this exact structure for MCP servers. Do NOT use classes or other patterns.
+Make sure the code is valid TypeScript and can be run with Node.js.
+The file should be a valid ES module (use import/export syntax).
 
 Format your response with the complete code in a code block, and explain what the code does.
 `;
         response = await llmProvider.generateResponse(prompt);
         
+        // Extract the code from the response
+        const codeMatch = response.match(/```(?:typescript|js|javascript)([\s\S]*?)```/);
+        if (codeMatch && codeMatch[1]) {
+          serverDetails.code = codeMatch[1].trim();
+        }
+        
         // Check if the user wants to save the code
         if (userQuery.toLowerCase().includes("save") || 
             userQuery.toLowerCase().includes("write to file") ||
-            userQuery.toLowerCase().includes("create file")) {
+            userQuery.toLowerCase().includes("create file") ||
+            userQuery.toLowerCase().includes("create that server") ||
+            userQuery.toLowerCase().includes("create the server")) {
           stage = 'save_code';
         }
         break;
         
       case 'save_code':
-        // Save the code to a file
-        prompt = `
-You are an expert MCP (Model Context Protocol) server developer. The user wants to save the server code to a file.
-
+        // If we don't have code yet, extract it from the conversation
+        if (!serverDetails.code) {
+          prompt = `
+Extract the complete TypeScript code for the MCP server from our conversation.
 Previous conversation:
 ${conversationHistory}
 
-User's latest input: "${userQuery}"
-
-Extract the complete TypeScript code from our conversation and prepare it for saving.
-Also, determine an appropriate filename for this server (e.g., weather-server.ts).
-
-Respond with:
-1. The filename to use
-2. The complete code to save
-3. A brief confirmation message explaining what will be saved
+Return ONLY the code, without any explanation or markdown formatting.
 `;
-        response = await llmProvider.generateResponse(prompt);
+          const codeResponse = await llmProvider.generateResponse(prompt);
+          const extractedCode = codeResponse.replace(/```(?:typescript|js|javascript)?|```/g, '').trim();
+          serverDetails.code = extractedCode;
+        }
         
-        // TODO: Implement actual file saving using the filesystem MCP server
-        // This would require extracting the code and filename from the response
-        // and then calling the write_file tool
+        // Determine an appropriate filename
+        if (!serverDetails.filename) {
+          prompt = `
+Based on our conversation about creating an MCP server, suggest an appropriate filename for this server.
+The filename should be in kebab-case (e.g., weather-server.ts) and end with .ts extension.
+Previous conversation:
+${conversationHistory}
+
+Return ONLY the filename, without any explanation.
+`;
+          const filenameResponse = await llmProvider.generateResponse(prompt);
+          serverDetails.filename = filenameResponse.trim().replace(/['"]/g, '');
+          
+          // Ensure the filename has .ts extension
+          if (!serverDetails.filename.endsWith('.ts')) {
+            serverDetails.filename += '.ts';
+          }
+        }
+        
+        // Save the file using the filesystem MCP server
+        try {
+          const filePath = `mcp-servers/${serverDetails.filename}`;
+          
+          // Create the directory if it doesn't exist
+          await toolExecutor.execute('filesystem', 'create_directory', {
+            path: 'mcp-servers'
+          });
+          
+          // Write the file
+          await toolExecutor.execute('filesystem', 'write_file', {
+            path: filePath,
+            content: serverDetails.code
+          });
+          
+          // Generate server configuration for registration
+          const serverNameMatch = serverDetails.code.match(/name:\s*["']([^"']+)["']/);
+          const serverName = serverNameMatch ? serverNameMatch[1] : serverDetails.filename.replace('.ts', '');
+          
+          // Extract tool names and parameters
+          const toolRegex = /server\.tool\(\s*["']([^"']+)["']\s*,\s*\{([^}]+)\}/g;
+          const tools = [];
+          let match;
+          
+          while ((match = toolRegex.exec(serverDetails.code)) !== null) {
+            const toolName = match[1];
+            const paramsText = match[2];
+            tools.push({
+              name: toolName,
+              description: `Tool for ${toolName.replace(/-/g, ' ')}`
+            });
+          }
+          
+          // Save server configuration for registration
+          serverDetails.serverConfig = {
+            id: serverName.toLowerCase().replace(/\s+/g, '_'),
+            name: serverName,
+            description: `MCP server for ${serverName}`,
+            connection: {
+              type: 'stdio',
+              command: 'node',
+              args: [`./mcp-servers/${serverDetails.filename}`]
+            },
+            tools: tools
+          };
+          
+          response = `Great! I've saved your MCP server to ${filePath}.
+
+The server includes the following tools:
+${tools.map(t => `- ${t.name}`).join('\n')}
+
+Would you like me to register this server with the system so you can use it right away?`;
+          
+          stage = 'register_server';
+        } catch (error) {
+          console.error('Error saving server file:', error);
+          response = `I encountered an error while trying to save your server: ${error.message}. Please try again or save the code manually.`;
+        }
+        break;
+        
+      case 'register_server':
+        // Register the server with the system
+        if (userQuery.toLowerCase().includes('yes') || 
+            userQuery.toLowerCase().includes('register') || 
+            userQuery.toLowerCase().includes('add it') ||
+            userQuery.toLowerCase().includes('sure')) {
+          
+          if (serverDetails.serverConfig) {
+            try {
+              // Add the server to the registry
+              serverRegistry.addServer(serverDetails.serverConfig);
+              
+              response = `Success! I've registered the ${serverDetails.serverConfig.name} server with the system.
+
+You can now use it by asking questions that require its tools. For example:
+"What's the weather in New York?"
+
+You can also manage your servers with these commands:
+- "list servers" - Show all available servers
+- "server status" - Check which servers are active
+- "deactivate server ${serverDetails.serverConfig.id}" - Temporarily disable this server
+- "activate server ${serverDetails.serverConfig.id}" - Re-enable the server if it's disabled
+
+Is there anything else you'd like to know about your new server?`;
+            } catch (error) {
+              console.error('Error registering server:', error);
+              response = `I encountered an error while trying to register your server: ${error.message}. You may need to restart the application for the server to be recognized.`;
+            }
+          } else {
+            response = `I'm sorry, but I don't have the server configuration details. Let's try again by generating the server code first.`;
+            stage = 'code_generation';
+          }
+        } else {
+          response = `No problem. The server has been saved to mcp-servers/${serverDetails.filename}, but it hasn't been registered with the system yet.
+
+You can register it later by saying "register the ${serverDetails.filename.replace('.ts', '')} server" or by restarting the application.
+
+Is there anything else you'd like to do with your server?`;
+        }
         
         stage = 'complete';
         break;

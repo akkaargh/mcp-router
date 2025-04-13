@@ -26,7 +26,8 @@ export class QueryRouter {
    * Generate a formatted description of all available tools
    */
   private getToolsDescription(): string {
-    const servers = this.registry.getServers();
+    // Only include active servers
+    const servers = this.registry.getServers().filter(server => !server.disabled);
     let toolsDescription = '';
     
     servers.forEach(server => {
@@ -144,6 +145,9 @@ export class QueryRouter {
     // Get formatted tool descriptions and conversation history
     const toolsDescription = this.getToolsDescription();
     const historyText = this.getConversationHistoryText();
+    
+    // Get only active servers
+    const activeServers = this.registry.getServers().filter(server => !server.disabled);
     
     // Construct the prompt for the LLM
     const prompt = `

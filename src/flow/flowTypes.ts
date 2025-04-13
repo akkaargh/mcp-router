@@ -18,6 +18,7 @@ export interface FlowContext {
   memory: ConversationMemory;
   userQuery: string;
   params: FlowParams;
+  toolExecutor?: any; // Add toolExecutor for file operations
 }
 
 /**
