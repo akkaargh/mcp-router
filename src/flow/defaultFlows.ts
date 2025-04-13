@@ -169,13 +169,35 @@ Format your response with the complete code in a code block, and explain what th
           serverDetails.code = codeMatch[1].trim();
         }
         
-        // Check if the user wants to save the code
-        if (userQuery.toLowerCase().includes("save") || 
-            userQuery.toLowerCase().includes("write to file") ||
-            userQuery.toLowerCase().includes("create file") ||
-            userQuery.toLowerCase().includes("create that server") ||
-            userQuery.toLowerCase().includes("create the server")) {
-          stage = 'save_code';
+        // Determine if the user wants to create/save the MCP server
+        const intentPrompt = `
+Based on the following conversation, determine if the user is expressing an intent to create, save, or generate the MCP server file.
+
+Previous conversation:
+${conversationHistory}
+
+User's latest input: "${userQuery}"
+
+Respond with a JSON object with a single field "intent" that is either "create_mcp_server" if the user wants to create/save/generate the server file, or "continue_discussion" if they are just asking questions or providing more details.
+
+Example:
+{"intent": "create_mcp_server"}
+or
+{"intent": "continue_discussion"}
+`;
+        
+        const intentResponse = await llmProvider.generateResponse(intentPrompt);
+        try {
+          // Extract JSON from the response
+          const jsonMatch = intentResponse.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            const intentData = JSON.parse(jsonMatch[0]);
+            if (intentData.intent === "create_mcp_server") {
+              stage = 'save_code';
+            }
+          }
+        } catch (error) {
+          console.error("Failed to parse intent response:", error);
         }
         break;
         
@@ -213,6 +235,25 @@ Return ONLY the filename, without any explanation.
           }
         }
         
+        // Validate the code to ensure it's using the correct imports and structure
+        prompt = `
+Review this MCP server code and ensure it follows the correct structure with proper imports.
+If there are any issues, fix them and return the corrected code.
+
+${serverDetails.code}
+
+Specifically check for:
+1. Correct imports from "@modelcontextprotocol/sdk/server/mcp.js" and "@modelcontextprotocol/sdk/server/stdio.js"
+2. Proper use of McpServer and StdioServerTransport
+3. Correct tool definitions using server.tool()
+4. Proper connection setup with await server.connect(transport)
+
+Return ONLY the corrected code, without any explanation or markdown formatting.
+`;
+        const validatedCodeResponse = await llmProvider.generateResponse(prompt);
+        const validatedCode = validatedCodeResponse.replace(/```(?:typescript|js|javascript)?|```/g, '').trim();
+        serverDetails.code = validatedCode;
+        
         // Save the file using the filesystem MCP server
         try {
           const filePath = `mcp-servers/${serverDetails.filename}`;
@@ -246,6 +287,32 @@ Return ONLY the filename, without any explanation.
             });
           }
           
+          // If no tools were found with the regex, try to extract them another way
+          if (tools.length === 0) {
+            const toolNamesPrompt = `
+Extract the names of all tools defined in this MCP server code:
+
+${serverDetails.code}
+
+Return a JSON array of tool names only, like: ["toolName1", "toolName2"]
+`;
+            const toolNamesResponse = await llmProvider.generateResponse(toolNamesPrompt);
+            try {
+              const jsonMatch = toolNamesResponse.match(/\[[\s\S]*\]/);
+              if (jsonMatch) {
+                const toolNames = JSON.parse(jsonMatch[0]);
+                toolNames.forEach(name => {
+                  tools.push({
+                    name,
+                    description: `Tool for ${name.replace(/-/g, ' ')}`
+                  });
+                });
+              }
+            } catch (error) {
+              console.error("Failed to parse tool names:", error);
+            }
+          }
+          
           // Save server configuration for registration
           serverDetails.serverConfig = {
             id: serverName.toLowerCase().replace(/\s+/g, '_'),
@@ -275,12 +342,38 @@ Would you like me to register this server with the system so you can use it righ
         break;
         
       case 'register_server':
-        // Register the server with the system
-        if (userQuery.toLowerCase().includes('yes') || 
-            userQuery.toLowerCase().includes('register') || 
-            userQuery.toLowerCase().includes('add it') ||
-            userQuery.toLowerCase().includes('sure')) {
-          
+        // Determine if the user wants to register the server
+        const registerIntentPrompt = `
+Based on the following conversation, determine if the user is expressing an intent to register the MCP server with the system.
+
+Previous conversation:
+${conversationHistory}
+
+User's latest input: "${userQuery}"
+
+Respond with a JSON object with a single field "intent" that is either "register_server" if the user wants to register the server, or "skip_registration" if they don't want to register it now.
+
+Example:
+{"intent": "register_server"}
+or
+{"intent": "skip_registration"}
+`;
+        
+        const registerIntentResponse = await llmProvider.generateResponse(registerIntentPrompt);
+        let registerIntent = "skip_registration";
+        
+        try {
+          // Extract JSON from the response
+          const jsonMatch = registerIntentResponse.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            const intentData = JSON.parse(jsonMatch[0]);
+            registerIntent = intentData.intent;
+          }
+        } catch (error) {
+          console.error("Failed to parse register intent response:", error);
+        }
+        
+        if (registerIntent === "register_server") {
           if (serverDetails.serverConfig) {
             try {
               // Add the server to the registry
