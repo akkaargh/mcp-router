@@ -2,7 +2,7 @@ import { LLMProvider } from './index';
 
 export class AnthropicProvider implements LLMProvider {
   private apiKey: string = '';
-  private model: string = 'claude-3-7-sonnet-20240620';
+  private model: string = 'claude-3-sonnet-20240229';
 
   setApiKey(apiKey: string): void {
     this.apiKey = apiKey;
@@ -38,6 +38,7 @@ export class AnthropicProvider implements LLMProvider {
       
       // Check for errors in the response
       if (data.error) {
+        console.error('Anthropic API error details:', JSON.stringify(data.error, null, 2));
         throw new Error(`Anthropic API error: ${data.error.message || JSON.stringify(data.error)}`);
       }
       
