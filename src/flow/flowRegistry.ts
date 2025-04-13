@@ -32,7 +32,7 @@ export class FlowRegistry {
    * Get a flow by ID
    */
   getFlowById(id: string): Flow | undefined {
-    return this.flows.find(flow => flow.id === flow.id);
+    return this.flows.find(flow => flow.id === id);
   }
 
   /**
