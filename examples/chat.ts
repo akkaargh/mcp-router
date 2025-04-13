@@ -96,7 +96,28 @@ Respond with only "NEEDS_TOOL" or "DIRECT_ANSWER".
     }
   };
 
-  // Override the execute method to handle direct answers
+  // Register a special "direct_answer" server for handling general knowledge questions
+  router.getServerRegistry().addServer({
+    id: 'direct_answer',
+    name: 'Direct Answer',
+    description: 'A server that provides direct answers to general knowledge questions',
+    connection: {
+      type: 'stdio',
+      command: 'node',
+      args: []
+    },
+    tools: [
+      {
+        name: 'answer',
+        description: 'Answer a general knowledge question',
+        paramSchema: z.object({
+          query: z.string().describe('The question to answer')
+        })
+      }
+    ]
+  });
+
+  // Add a custom handler for the direct_answer server in the toolExecutor
   const originalExecute = router.toolExecutor.execute.bind(router.toolExecutor);
   router.toolExecutor.execute = async (serverId: string, toolName: string, parameters: Record<string, any>) => {
     if (serverId === "direct_answer" && toolName === "answer") {

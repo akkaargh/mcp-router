@@ -9,7 +9,7 @@ export class MCPLLMRouter {
   private llmProvider: LLMProvider;
   private serverRegistry: ServerRegistry;
   queryRouter: QueryRouter; // Changed from private to public
-  private toolExecutor: ToolExecutor;
+  toolExecutor: ToolExecutor; // Changed from private to public
   private responseFormatter: ResponseFormatter;
 
   constructor(llmProviderType?: 'openai' | 'anthropic') {
