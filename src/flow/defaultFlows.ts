@@ -269,7 +269,8 @@ Would you like me to register this server with the system so you can use it righ
           stage = 'register_server';
         } catch (error) {
           console.error('Error saving server file:', error);
-          response = `I encountered an error while trying to save your server: ${error.message}. Please try again or save the code manually.`;
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          response = `I encountered an error while trying to save your server: ${errorMessage}. Please try again or save the code manually.`;
         }
         break;
         
@@ -299,7 +300,8 @@ You can also manage your servers with these commands:
 Is there anything else you'd like to know about your new server?`;
             } catch (error) {
               console.error('Error registering server:', error);
-              response = `I encountered an error while trying to register your server: ${error.message}. You may need to restart the application for the server to be recognized.`;
+              const errorMessage = error instanceof Error ? error.message : String(error);
+              response = `I encountered an error while trying to register your server: ${errorMessage}. You may need to restart the application for the server to be recognized.`;
             }
           } else {
             response = `I'm sorry, but I don't have the server configuration details. Let's try again by generating the server code first.`;
