@@ -301,7 +301,7 @@ Return a JSON array of tool names only, like: ["toolName1", "toolName2"]
               const jsonMatch = toolNamesResponse.match(/\[[\s\S]*\]/);
               if (jsonMatch) {
                 const toolNames = JSON.parse(jsonMatch[0]);
-                toolNames.forEach(name => {
+                toolNames.forEach((name: string) => {
                   tools.push({
                     name,
                     description: `Tool for ${name.replace(/-/g, ' ')}`
