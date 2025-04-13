@@ -8,11 +8,19 @@ dotenv.config();
 async function main() {
   console.log('Starting MCP-LLM-Router Chat Interface...');
   console.log('Type "exit" or "quit" to end the session.');
+  console.log('Type "help" to see available commands.');
   console.log('---------------------------------------------');
 
-  // Create a new router instance with memory and register default servers
+  // Create a new router instance with memory
   const router = new MCPLLMRouter('openai', 'buffer', { maxMessages: 10 });
+  
+  // Register default servers and flows
   router.registerDefaultServers();
+  router.registerDefaultFlows();
+
+  console.log('Registered servers:', router.getServerRegistry().getServers().map(s => s.name).join(', '));
+  console.log('Registered flows:', router.getFlowRegistry().getFlows().map(f => f.name).join(', '));
+  console.log('---------------------------------------------');
 
   // Create readline interface
   const rl = readline.createInterface({
@@ -27,6 +35,27 @@ async function main() {
         console.log('Goodbye!');
         rl.close();
         process.exit(0);
+        return;
+      }
+      
+      if (userInput.toLowerCase() === 'help') {
+        console.log('Available commands:');
+        console.log('  exit, quit - Exit the chat interface');
+        console.log('  help - Show this help message');
+        console.log('  clear - Clear the conversation history');
+        console.log('\nAvailable flows:');
+        router.getFlowRegistry().getFlows().forEach(flow => {
+          console.log(`  ${flow.name} - ${flow.description}`);
+        });
+        console.log('\nYou can also ask me anything, and I\'ll try to help!');
+        askQuestion();
+        return;
+      }
+      
+      if (userInput.toLowerCase() === 'clear') {
+        router.clearMemory();
+        console.log('Conversation history cleared.');
+        askQuestion();
         return;
       }
 

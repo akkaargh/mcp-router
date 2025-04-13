@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { MCPServerConfig } from '../registry/serverRegistry';
+import { filesystemServer } from './filesystemServer';
 
 /**
  * Default calculator server configuration
@@ -76,5 +77,5 @@ export const directAnswerServer: MCPServerConfig = {
  * Get all default server configurations
  */
 export function getDefaultServers(): MCPServerConfig[] {
-  return [calculatorServer, directAnswerServer];
+  return [calculatorServer, directAnswerServer, filesystemServer];
 }

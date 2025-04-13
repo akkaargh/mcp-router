@@ -9,7 +9,8 @@
     "test": "jest",
     "lint": "eslint src/**/*.ts",
     "start": "ts-node examples/basic-usage.ts",
-    "chat": "ts-node examples/chat.ts"
+    "chat": "ts-node examples/chat.ts",
+    "flow": "ts-node examples/flow-example.ts"
   },
   "keywords": [
     "mcp",

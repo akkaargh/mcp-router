@@ -5,9 +5,16 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 async function main() {
-  // Create a new router instance with memory and register default servers
+  // Create a new router instance with memory
   const router = new MCPLLMRouter('openai', 'buffer', { maxMessages: 10 });
+  
+  // Register default servers and flows
   router.registerDefaultServers();
+  router.registerDefaultFlows();
+
+  console.log('Registered servers:', router.getServerRegistry().getServers().map(s => s.name).join(', '));
+  console.log('Registered flows:', router.getFlowRegistry().getFlows().map(f => f.name).join(', '));
+  console.log('---------------------------------------------');
 
   // Process a user query
   const userQuery = 'What is 5 plus 3?';
@@ -27,6 +34,13 @@ async function main() {
     
     const followUpResponse = await router.processQuery(followUpQuery);
     console.log(`Response: ${followUpResponse}`);
+    
+    // Try a flow-related query
+    const flowQuery = 'I want to create a new server for weather data';
+    console.log(`\nFlow query: ${flowQuery}`);
+    
+    const flowResponse = await router.processQuery(flowQuery);
+    console.log(`Response: ${flowResponse}`);
   } catch (error) {
     console.error('Error:', error);
   }

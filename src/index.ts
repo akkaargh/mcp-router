@@ -5,14 +5,22 @@ import { ToolExecutor } from './executor/toolExecutor';
 import { ResponseFormatter } from './formatter/responseFormatter';
 import { ConfigManager } from './config/configManager';
 import { getDefaultServers } from './servers/defaultServers';
-
 import { ConversationMemory, createMemory, Message } from './memory/conversationMemory';
+
+// Import flow-related components
+import { FlowRegistry } from './flow/flowRegistry';
+import { FlowExecutor } from './flow/flowExecutor';
+import { FlowRouter } from './flow/flowRouter';
+import { getDefaultFlows } from './flow/defaultFlows';
 
 export class MCPLLMRouter {
   private llmProvider: LLMProvider;
   private serverRegistry: ServerRegistry;
+  private flowRegistry: FlowRegistry;
   queryRouter: QueryRouter; // Changed from private to public
   toolExecutor: ToolExecutor; // Changed from private to public
+  private flowRouter: FlowRouter;
+  private flowExecutor: FlowExecutor;
   private responseFormatter: ResponseFormatter;
   private memory: ConversationMemory;
 
@@ -39,10 +47,15 @@ export class MCPLLMRouter {
     // Initialize memory
     this.memory = createMemory(memoryType, memoryOptions);
 
-    // Initialize other components
+    // Initialize registries
     this.serverRegistry = new ServerRegistry();
+    this.flowRegistry = new FlowRegistry();
+
+    // Initialize routers and executors
     this.queryRouter = new QueryRouter(this.llmProvider, this.serverRegistry, this.memory);
     this.toolExecutor = new ToolExecutor(this.serverRegistry);
+    this.flowRouter = new FlowRouter(this.llmProvider, this.flowRegistry, this.memory);
+    this.flowExecutor = new FlowExecutor(this.flowRegistry, this.llmProvider, this.serverRegistry, this.memory);
     this.responseFormatter = new ResponseFormatter(this.llmProvider, this.memory);
   }
 
@@ -50,13 +63,27 @@ export class MCPLLMRouter {
     return this.serverRegistry;
   }
   
+  getFlowRegistry(): FlowRegistry {
+    return this.flowRegistry;
+  }
+  
   /**
-   * Register default servers (calculator and direct_answer)
+   * Register default servers (calculator, direct_answer, filesystem)
    */
   registerDefaultServers(): void {
     const defaultServers = getDefaultServers();
     defaultServers.forEach(server => {
       this.serverRegistry.addServer(server);
+    });
+  }
+  
+  /**
+   * Register default flows (server_builder, flow_builder)
+   */
+  registerDefaultFlows(): void {
+    const defaultFlows = getDefaultFlows();
+    defaultFlows.forEach(flow => {
+      this.flowRegistry.addFlow(flow);
     });
   }
 
@@ -68,6 +95,8 @@ export class MCPLLMRouter {
     this.llmProvider = provider;
     // Update components that use the LLM provider
     this.queryRouter = new QueryRouter(this.llmProvider, this.serverRegistry, this.memory);
+    this.flowRouter = new FlowRouter(this.llmProvider, this.flowRegistry, this.memory);
+    this.flowExecutor = new FlowExecutor(this.flowRegistry, this.llmProvider, this.serverRegistry, this.memory);
     this.responseFormatter = new ResponseFormatter(this.llmProvider, this.memory);
   }
 
@@ -92,8 +121,35 @@ export class MCPLLMRouter {
       // Add the user's message to memory
       this.addToMemory('user', userInput);
       
-      // Route the query to determine which tool to use
-      console.log('Routing query...');
+      // First, check if this query should be handled by a flow
+      console.log('Checking if query should be handled by a flow...');
+      const flowRouting = await this.flowRouter.routeQuery(userInput);
+      
+      if (flowRouting.shouldUseFlow && flowRouting.flowId) {
+        console.log(`Using flow: ${flowRouting.flowId}`);
+        
+        // Execute the flow
+        const flowResult = await this.flowExecutor.executeFlow(
+          flowRouting.flowId,
+          userInput,
+          flowRouting.params
+        );
+        
+        // Add the flow's response to memory
+        this.addToMemory('assistant', flowResult.response);
+        
+        console.log('--- Flow Processing Complete ---\n');
+        return flowResult.response;
+      }
+      
+      // If we have a direct response from flow routing, use it
+      if (flowRouting.directResponse) {
+        this.addToMemory('assistant', flowRouting.directResponse);
+        return flowRouting.directResponse;
+      }
+      
+      // Otherwise, proceed with normal tool routing
+      console.log('Routing query to tools...');
       const routingInfo = await this.queryRouter.routeQuery(userInput);
       console.log('Routing complete:', {
         serverId: routingInfo.serverId,
@@ -140,3 +196,8 @@ export { ToolExecutor } from './executor/toolExecutor';
 export { ResponseFormatter } from './formatter/responseFormatter';
 export { ConfigManager } from './config/configManager';
 export { getDefaultServers } from './servers/defaultServers';
+export { FlowRegistry } from './flow/flowRegistry';
+export { FlowExecutor } from './flow/flowExecutor';
+export { FlowRouter } from './flow/flowRouter';
+export { getDefaultFlows } from './flow/defaultFlows';
+export { type Flow, type FlowContext, type FlowResult, type FlowParams } from './flow/flowTypes';
