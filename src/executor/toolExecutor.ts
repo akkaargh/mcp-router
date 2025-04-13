@@ -1,5 +1,5 @@
 import { ServerRegistry, MCPServerConfig } from '../registry/serverRegistry';
-import { McpClient } from "@modelcontextprotocol/sdk/client/index.js";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 
@@ -50,7 +50,7 @@ export class ToolExecutor {
       args: serverConfig.connection.args || []
     });
     
-    const client = new McpClient();
+    const client = new Client();
     
     try {
       // Connect to the server
@@ -75,11 +75,11 @@ export class ToolExecutor {
     parameters: Record<string, any>
   ): Promise<any> {
     // Create an MCP client for SSE
-    const transport = new SSEClientTransport({
-      serverUrl: serverConfig.connection.url || ''
-    });
+    const transport = new SSEClientTransport(
+      serverConfig.connection.url || ''
+    );
     
-    const client = new McpClient();
+    const client = new Client();
     
     try {
       // Connect to the server
