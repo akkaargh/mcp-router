@@ -4,7 +4,7 @@ import { ServerRegistry } from '../registry/serverRegistry';
 export class QueryRouter {
   constructor(private llmProvider: LLMProvider, private registry: ServerRegistry) {}
 
-  private processJsonResponse(jsonString: string, userInput: string, server?: any): {
+  private processJsonResponse(jsonString: string, userInput: string): {
     serverId: string;
     toolName: string;
     parameters: Record<string, any>;
@@ -143,7 +143,7 @@ IMPORTANT:
         if (jsonMatch) {
           console.log('Extracted JSON from non-JSON response');
           const extractedJson = jsonMatch[0];
-          return this.processJsonResponse(extractedJson, userInput, server);
+          return this.processJsonResponse(extractedJson, userInput);
         } else {
           throw new Error(`Response is not in JSON format: ${response.substring(0, 100)}...`);
         }
