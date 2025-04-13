@@ -4,6 +4,7 @@ import { QueryRouter } from './router/queryRouter';
 import { ToolExecutor } from './executor/toolExecutor';
 import { ResponseFormatter } from './formatter/responseFormatter';
 import { ConfigManager } from './config/configManager';
+import { getDefaultServers } from './servers/defaultServers';
 
 import { ConversationMemory, createMemory, Message } from './memory/conversationMemory';
 
@@ -47,6 +48,16 @@ export class MCPLLMRouter {
 
   getServerRegistry(): ServerRegistry {
     return this.serverRegistry;
+  }
+  
+  /**
+   * Register default servers (calculator and direct_answer)
+   */
+  registerDefaultServers(): void {
+    const defaultServers = getDefaultServers();
+    defaultServers.forEach(server => {
+      this.serverRegistry.addServer(server);
+    });
   }
 
   getLLMProvider(): LLMProvider {
@@ -128,3 +139,4 @@ export { QueryRouter } from './router/queryRouter';
 export { ToolExecutor } from './executor/toolExecutor';
 export { ResponseFormatter } from './formatter/responseFormatter';
 export { ConfigManager } from './config/configManager';
+export { getDefaultServers } from './servers/defaultServers';
