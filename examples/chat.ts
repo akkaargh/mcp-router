@@ -11,8 +11,8 @@ async function main() {
   console.log('Type "exit" or "quit" to end the session.');
   console.log('---------------------------------------------');
 
-  // Create a new router instance
-  const router = new MCPLLMRouter('openai');
+  // Create a new router instance with memory
+  const router = new MCPLLMRouter('openai', 'buffer', { maxMessages: 10 });
 
   // Register the calculator MCP server
   router.getServerRegistry().addServer({

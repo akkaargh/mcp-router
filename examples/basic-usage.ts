@@ -6,8 +6,8 @@ import { z } from 'zod';
 dotenv.config();
 
 async function main() {
-  // Create a new router instance
-  const router = new MCPLLMRouter('openai');
+  // Create a new router instance with memory
+  const router = new MCPLLMRouter('openai', 'buffer', { maxMessages: 10 });
 
   // Register an MCP server
   router.getServerRegistry().addServer({

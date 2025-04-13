@@ -1,8 +1,13 @@
 import { LLMProvider } from '../llm';
 import { ServerRegistry } from '../registry/serverRegistry';
+import { ConversationMemory } from '../memory/conversationMemory';
 
 export class QueryRouter {
-  constructor(private llmProvider: LLMProvider, private registry: ServerRegistry) {}
+  constructor(
+    private llmProvider: LLMProvider, 
+    private registry: ServerRegistry,
+    private memory: ConversationMemory
+  ) {}
 
   private processJsonResponse(jsonString: string, userInput: string): {
     serverId: string;
@@ -84,18 +89,34 @@ export class QueryRouter {
       toolsDescription += '\n';
     });
     
+    // Get conversation history
+    const conversationHistory = this.memory.getMessages();
+    let historyText = '';
+    
+    if (conversationHistory.length > 0) {
+      historyText = 'Conversation history:\n';
+      conversationHistory.forEach(msg => {
+        historyText += `${msg.role}: ${msg.content}\n`;
+      });
+      historyText += '\n';
+    }
+    
     const prompt = `
+${historyText}
 User input: "${userInput}"
 
 Available tools:
 ${toolsDescription}
 
-Based on the user input, determine which tool would be most appropriate to use.
+Based on the user input and conversation history, determine which tool would be most appropriate to use.
 Extract any relevant numbers or values from the user input to use as parameters.
 
 For example, if the user asks "What is 5 plus 3?", you should identify that:
 - The "add" tool on the "calculator" server is appropriate
 - The parameters should be: { "a": 5, "b": 3 }
+
+If the user previously asked about adding numbers and now provides the numbers (like "five and 13"), 
+you should understand from context that they want to use the add tool with those numbers.
 
 If the user's query is ambiguous or missing required parameters (like "I want to add two numbers" without specifying which numbers), respond with:
 "I need more information. Which specific numbers would you like to add?"
@@ -114,6 +135,8 @@ IMPORTANT:
 1. Make sure to include all required parameters with their correct types.
 2. For numeric parameters, use actual numbers (e.g., 5), not strings (e.g., "5").
 3. If any required parameters are missing, DO NOT return JSON. Instead, ask for the missing information.
+4. Use the conversation history to understand the context of the current request.
+5. Convert word-form numbers (like "five") to numeric values (like 5).
 `;
 
     const response = await this.llmProvider.generateResponse(prompt);
