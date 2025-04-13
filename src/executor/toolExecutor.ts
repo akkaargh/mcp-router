@@ -1,5 +1,5 @@
 import { ServerRegistry, MCPServerConfig } from '../registry/serverRegistry';
-import { McpClient } from "@modelcontextprotocol/sdk/client/mcp.js";
+import { McpClient } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 
@@ -76,7 +76,7 @@ export class ToolExecutor {
   ): Promise<any> {
     // Create an MCP client for SSE
     const transport = new SSEClientTransport({
-      url: serverConfig.connection.url || ''
+      serverUrl: serverConfig.connection.url || ''
     });
     
     const client = new McpClient();
