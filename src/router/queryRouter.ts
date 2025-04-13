@@ -4,6 +4,53 @@ import { ServerRegistry } from '../registry/serverRegistry';
 export class QueryRouter {
   constructor(private llmProvider: LLMProvider, private registry: ServerRegistry) {}
 
+  private processJsonResponse(jsonString: string, userInput: string, server?: any): {
+    serverId: string;
+    toolName: string;
+    parameters: Record<string, any>;
+  } {
+    try {
+      // Parse the JSON string
+      const parsedResponse = JSON.parse(jsonString);
+      console.log('Parsed routing response:', parsedResponse);
+      
+      // Validate that we have the required fields
+      if (!parsedResponse.serverId || !parsedResponse.toolName || !parsedResponse.parameters) {
+        throw new Error('Missing required fields in LLM response');
+      }
+      
+      // Ensure parameters are the correct type (convert strings to numbers if needed)
+      const server = this.registry.getServerById(parsedResponse.serverId);
+      if (!server) {
+        throw new Error(`Server with ID ${parsedResponse.serverId} not found`);
+      }
+      
+      const tool = server.tools.find(t => t.name === parsedResponse.toolName);
+      if (!tool) {
+        throw new Error(`Tool ${parsedResponse.toolName} not found on server ${parsedResponse.serverId}`);
+      }
+      
+      // Log parameter extraction
+      console.log('Extracted parameters:', {
+        original: parsedResponse.parameters,
+        types: Object.entries(parsedResponse.parameters).reduce((acc, [key, value]) => {
+          acc[key] = typeof value;
+          return acc;
+        }, {} as Record<string, string>)
+      });
+      
+      // Return the validated and potentially converted parameters
+      return {
+        serverId: parsedResponse.serverId,
+        toolName: parsedResponse.toolName,
+        parameters: parsedResponse.parameters
+      };
+    } catch (error) {
+      console.error('Failed to parse JSON response:', error);
+      throw error;
+    }
+  }
+
   async routeQuery(userInput: string): Promise<{
     serverId: string;
     toolName: string;
@@ -95,47 +142,15 @@ IMPORTANT:
         const jsonMatch = response.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
           console.log('Extracted JSON from non-JSON response');
-          response = jsonMatch[0];
+          const extractedJson = jsonMatch[0];
+          return this.processJsonResponse(extractedJson, userInput, server);
         } else {
           throw new Error(`Response is not in JSON format: ${response.substring(0, 100)}...`);
         }
       }
       
       // Parse the LLM's response to extract the routing information
-      const parsedResponse = JSON.parse(response);
-      console.log('Parsed routing response:', parsedResponse);
-      
-      // Validate that we have the required fields
-      if (!parsedResponse.serverId || !parsedResponse.toolName || !parsedResponse.parameters) {
-        throw new Error('Missing required fields in LLM response');
-      }
-      
-      // Ensure parameters are the correct type (convert strings to numbers if needed)
-      const server = this.registry.getServerById(parsedResponse.serverId);
-      if (!server) {
-        throw new Error(`Server with ID ${parsedResponse.serverId} not found`);
-      }
-      
-      const tool = server.tools.find(t => t.name === parsedResponse.toolName);
-      if (!tool) {
-        throw new Error(`Tool ${parsedResponse.toolName} not found on server ${parsedResponse.serverId}`);
-      }
-      
-      // Log parameter extraction
-      console.log('Extracted parameters:', {
-        original: parsedResponse.parameters,
-        types: Object.entries(parsedResponse.parameters).reduce((acc, [key, value]) => {
-          acc[key] = typeof value;
-          return acc;
-        }, {} as Record<string, string>)
-      });
-      
-      // Return the validated and potentially converted parameters
-      return {
-        serverId: parsedResponse.serverId,
-        toolName: parsedResponse.toolName,
-        parameters: parsedResponse.parameters
-      };
+      return this.processJsonResponse(response, userInput);
     } catch (error) {
       console.error('Failed to parse LLM response:', error);
       
