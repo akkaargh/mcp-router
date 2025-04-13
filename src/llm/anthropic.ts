@@ -25,8 +25,7 @@ export class AnthropicProvider implements LLMProvider {
         headers: {
           'Content-Type': 'application/json',
           'x-api-key': this.apiKey,
-          'anthropic-version': '2023-06-01',
-          'x-api-key': this.apiKey
+          'anthropic-version': '2023-06-01'
         },
         body: JSON.stringify({
           model: this.model,
