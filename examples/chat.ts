@@ -73,6 +73,9 @@ If it requires a tool, respond with "NEEDS_TOOL". If it can be answered directly
 
 Example 1: "What is 5 plus 3?" -> "NEEDS_TOOL"
 Example 2: "What is the capital of France?" -> "DIRECT_ANSWER"
+Example 3: "What capital did I just ask you about?" -> "DIRECT_ANSWER"
+
+For follow-up questions about previous conversation, always use "DIRECT_ANSWER".
 
 Respond with only "NEEDS_TOOL" or "DIRECT_ANSWER".
 `;

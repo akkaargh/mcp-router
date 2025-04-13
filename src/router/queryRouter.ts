@@ -118,10 +118,13 @@ For example, if the user asks "What is 5 plus 3?", you should identify that:
 If the user previously asked about adding numbers and now provides the numbers (like "five and 13"), 
 you should understand from context that they want to use the add tool with those numbers.
 
+If the user is asking a follow-up question about previous conversation (like "what capital did I just ask you about?"),
+respond with: "This is a follow-up question about conversation history."
+
 If the user's query is ambiguous or missing required parameters (like "I want to add two numbers" without specifying which numbers), respond with:
 "I need more information. Which specific numbers would you like to add?"
 
-Return your response in the following JSON format ONLY if you have all required parameters:
+Return your response in the following JSON format ONLY if you have all required parameters AND the query requires a tool:
 {
   "serverId": "the ID of the server",
   "toolName": "the name of the tool",
@@ -137,6 +140,7 @@ IMPORTANT:
 3. If any required parameters are missing, DO NOT return JSON. Instead, ask for the missing information.
 4. Use the conversation history to understand the context of the current request.
 5. Convert word-form numbers (like "five") to numeric values (like 5).
+6. If the query is a follow-up about previous conversation, DO NOT return JSON. Instead, indicate it's a follow-up question.
 `;
 
     const response = await this.llmProvider.generateResponse(prompt);
@@ -161,6 +165,22 @@ IMPORTANT:
           };
         }
         
+        // Handle follow-up questions about previous conversation
+        if (response.toLowerCase().includes('conversation history') || 
+            response.toLowerCase().includes('previous question') ||
+            response.toLowerCase().includes('asked about') ||
+            response.toLowerCase().includes('referring to')) {
+          
+          console.log('Detected follow-up question about conversation history');
+          return {
+            serverId: "direct_answer",
+            toolName: "answer",
+            parameters: { 
+              query: `The user asked: "${userInput}". Please answer based on our conversation history.` 
+            }
+          };
+        }
+        
         // If it's not a request for more information, try to extract JSON from the response
         const jsonMatch = response.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
@@ -168,7 +188,15 @@ IMPORTANT:
           const extractedJson = jsonMatch[0];
           return this.processJsonResponse(extractedJson, userInput);
         } else {
-          throw new Error(`Response is not in JSON format: ${response.substring(0, 100)}...`);
+          // If we can't extract JSON and it's not a special case, use direct answer as fallback
+          console.log('Using direct answer as fallback for non-JSON response');
+          return {
+            serverId: "direct_answer",
+            toolName: "answer",
+            parameters: { 
+              query: `The user asked: "${userInput}". Please answer based on the conversation history and your knowledge.` 
+            }
+          };
         }
       }
       
@@ -189,7 +217,32 @@ IMPORTANT:
         };
       }
       
-      throw new Error('Failed to determine appropriate tool for the query');
+      // For follow-up questions or questions about previous conversation
+      if (userInput.toLowerCase().includes('previous') || 
+          userInput.toLowerCase().includes('before') ||
+          userInput.toLowerCase().includes('last time') ||
+          userInput.toLowerCase().includes('just') ||
+          userInput.toLowerCase().includes('earlier')) {
+        
+        console.log('Detected possible follow-up question, using direct answer');
+        return {
+          serverId: "direct_answer",
+          toolName: "answer",
+          parameters: { 
+            query: `The user asked: "${userInput}". Please answer based on our conversation history.` 
+          }
+        };
+      }
+      
+      // Fallback to direct answer instead of throwing an error
+      console.log('Using direct answer as fallback for error case');
+      return {
+        serverId: "direct_answer",
+        toolName: "answer",
+        parameters: { 
+          query: `The user asked: "${userInput}". Please provide a helpful response.` 
+        }
+      };
     }
   }
 }
