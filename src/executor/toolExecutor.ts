@@ -50,7 +50,10 @@ export class ToolExecutor {
       args: serverConfig.connection.args || []
     });
     
-    const client = new Client();
+    const client = new Client({
+      name: "mcp-llm-router-client",
+      version: "1.0.0"
+    });
     
     try {
       // Connect to the server
@@ -64,8 +67,8 @@ export class ToolExecutor {
       
       return result;
     } finally {
-      // Disconnect from the server
-      await client.disconnect();
+      // Close the transport
+      await transport.close();
     }
   }
 
@@ -76,10 +79,13 @@ export class ToolExecutor {
   ): Promise<any> {
     // Create an MCP client for SSE
     const transport = new SSEClientTransport(
-      serverConfig.connection.url || ''
+      new URL(serverConfig.connection.url || '')
     );
     
-    const client = new Client();
+    const client = new Client({
+      name: "mcp-llm-router-client",
+      version: "1.0.0"
+    });
     
     try {
       // Connect to the server
@@ -93,8 +99,8 @@ export class ToolExecutor {
       
       return result;
     } finally {
-      // Disconnect from the server
-      await client.disconnect();
+      // Close the transport
+      await transport.close();
     }
   }
 }
