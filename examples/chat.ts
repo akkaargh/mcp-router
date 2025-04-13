@@ -97,11 +97,10 @@ async function main() {
   const originalExecute = router.toolExecutor.execute.bind(router.toolExecutor);
   router.toolExecutor.execute = async (serverId: string, toolName: string, parameters: Record<string, any>) => {
     if (serverId === "direct_answer" && toolName === "answer") {
-      // The query router now provides a more specific response for direct answers
-      const directPrompt = parameters.query;
-      const directAnswer = await router.getLLMProvider().generateResponse(directPrompt);
+      // For direct answers, just return the query as the response
+      // This preserves the context-aware response from the router
       return {
-        content: [{ type: "text", text: directAnswer }]
+        content: [{ type: "text", text: parameters.query }]
       };
     } else {
       // For tool-based questions, use the original execution logic

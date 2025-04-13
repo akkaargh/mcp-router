@@ -42,7 +42,7 @@ export class MCPLLMRouter {
     this.serverRegistry = new ServerRegistry();
     this.queryRouter = new QueryRouter(this.llmProvider, this.serverRegistry, this.memory);
     this.toolExecutor = new ToolExecutor(this.serverRegistry);
-    this.responseFormatter = new ResponseFormatter(this.llmProvider);
+    this.responseFormatter = new ResponseFormatter(this.llmProvider, this.memory);
   }
 
   getServerRegistry(): ServerRegistry {
@@ -57,7 +57,7 @@ export class MCPLLMRouter {
     this.llmProvider = provider;
     // Update components that use the LLM provider
     this.queryRouter = new QueryRouter(this.llmProvider, this.serverRegistry, this.memory);
-    this.responseFormatter = new ResponseFormatter(this.llmProvider);
+    this.responseFormatter = new ResponseFormatter(this.llmProvider, this.memory);
   }
 
   // Memory management methods
