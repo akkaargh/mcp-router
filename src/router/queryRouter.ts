@@ -26,7 +26,8 @@ export class QueryRouter {
           if (params.length > 0) {
             toolsDescription += `  Parameters:\n`;
             params.forEach(([paramName, paramSchema]) => {
-              const description = paramSchema.description || '';
+              // Cast to any to access the description property safely
+              const description = (paramSchema as any).description || '';
               toolsDescription += `    - ${paramName}: ${description}\n`;
             });
           }
