@@ -84,7 +84,11 @@ Remember:
         // Check if we have enough information to move to code generation
         if (response.toLowerCase().includes("generate the code") || 
             response.toLowerCase().includes("create the server") ||
-            response.toLowerCase().includes("write the code")) {
+            response.toLowerCase().includes("write the code") ||
+            response.toLowerCase().includes("let's make") ||
+            response.toLowerCase().includes("lets make") ||
+            response.toLowerCase().includes("build the server") ||
+            response.toLowerCase().includes("implement the server")) {
           stage = 'code_generation';
           
           // Extract server details from the conversation
@@ -137,28 +141,49 @@ Server details extracted so far:
 ${JSON.stringify(serverDetails, null, 2)}
 
 Generate complete, working TypeScript code for this MCP server using the @modelcontextprotocol/sdk package.
-The code should:
-1. Import necessary dependencies:
-   - import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-   - import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-   - import { z } from "zod";
 
-2. Create an MCP server instance:
-   - const server = new McpServer({ name: "Server Name", version: "1.0.0" });
+FOLLOW THIS EXACT PATTERN - DO NOT DEVIATE:
 
-3. Define all the tools mentioned in the conversation using the server.tool() method:
-   - server.tool("tool-name", { param: z.string() }, async ({ param }) => { ... });
+\`\`\`typescript
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { z } from "zod";
 
-4. Connect the server using StdioServerTransport:
-   - const transport = new StdioServerTransport();
-   - await server.connect(transport);
+// Create an MCP server
+const server = new McpServer({
+  name: "Weather Server",
+  version: "1.0.0"
+});
 
-5. Be ready to save to a file in the mcp-servers folder
+// Add tools
+server.tool("getWeather",
+  { city: z.string().describe("City name") },
+  async ({ city }) => ({
+    content: [{ type: "text", text: "rainy" }]
+  })
+);
 
-IMPORTANT: Follow this exact structure for MCP servers. Do NOT use classes or other patterns.
-Make sure the code is valid TypeScript and can be run with Node.js.
-The file should be a valid ES module (use import/export syntax).
+server.tool("getForecast",
+  { city: z.string().describe("City name") },
+  async ({ city }) => ({
+    content: [{ type: "text", text: "sunny" }]
+  })
+);
 
+// Start receiving messages on stdin and sending messages on stdout
+const transport = new StdioServerTransport();
+await server.connect(transport);
+\`\`\`
+
+IMPORTANT:
+1. Use EXACTLY the imports shown above
+2. Create the server with McpServer constructor
+3. Define each tool using server.tool() with the exact pattern shown
+4. Connect using StdioServerTransport
+5. Make sure the file is a valid ES module
+6. DO NOT use any other patterns or frameworks
+
+Replace the example tools with the actual tools needed for your server based on the conversation.
 Format your response with the complete code in a code block, and explain what the code does.
 `;
         response = await llmProvider.generateResponse(prompt);
@@ -242,12 +267,27 @@ If there are any issues, fix them and return the corrected code.
 
 ${serverDetails.code}
 
-Specifically check for:
-1. Correct imports from "@modelcontextprotocol/sdk/server/mcp.js" and "@modelcontextprotocol/sdk/server/stdio.js"
-2. Proper use of McpServer and StdioServerTransport
-3. Correct tool definitions using server.tool()
-4. Proper connection setup with await server.connect(transport)
+The code MUST follow this exact pattern:
+1. Import these exact packages:
+   - import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+   - import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+   - import { z } from "zod";
 
+2. Create a server with: const server = new McpServer({ name: "...", version: "1.0.0" });
+
+3. Define tools using this exact pattern:
+   server.tool("toolName",
+     { param: z.string().describe("description") },
+     async ({ param }) => ({
+       content: [{ type: "text", text: "result" }]
+     })
+   );
+
+4. Connect with: 
+   const transport = new StdioServerTransport();
+   await server.connect(transport);
+
+If the code doesn't match this pattern exactly, fix it to conform.
 Return ONLY the corrected code, without any explanation or markdown formatting.
 `;
         const validatedCodeResponse = await llmProvider.generateResponse(prompt);
