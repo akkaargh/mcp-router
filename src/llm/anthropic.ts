@@ -25,7 +25,8 @@ export class AnthropicProvider implements LLMProvider {
         headers: {
           'Content-Type': 'application/json',
           'x-api-key': this.apiKey,
-          'anthropic-version': '2023-06-01'
+          'anthropic-version': '2023-06-01',
+          'x-api-key': this.apiKey
         },
         body: JSON.stringify({
           model: this.model,
@@ -35,7 +36,22 @@ export class AnthropicProvider implements LLMProvider {
       });
 
       const data = await response.json();
-      return data.content[0].text;
+      
+      // Check for errors in the response
+      if (data.error) {
+        throw new Error(`Anthropic API error: ${data.error.message || JSON.stringify(data.error)}`);
+      }
+      
+      // Handle the response format correctly
+      if (data.content && Array.isArray(data.content) && data.content.length > 0) {
+        return data.content[0].text;
+      } else if (data.completion) {
+        // Fallback for older API versions
+        return data.completion;
+      } else {
+        console.log('Unexpected Anthropic API response format:', JSON.stringify(data, null, 2));
+        return data.content?.[0]?.text || data.completion || JSON.stringify(data);
+      }
     } catch (error) {
       console.error('Error generating response from Anthropic:', error);
       throw error;
