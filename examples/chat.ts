@@ -78,8 +78,10 @@ Respond with only "NEEDS_TOOL" or "DIRECT_ANSWER".
 `;
 
       const needsToolResponse = await router.getLLMProvider().generateResponse(needsToolPrompt);
+      console.log(`Tool decision: ${needsToolResponse.trim()}`);
       
       if (needsToolResponse.trim().includes("DIRECT_ANSWER")) {
+        console.log('Using direct answer (no tool needed)');
         // For direct questions, create a special routing that doesn't use any tool
         return {
           serverId: "direct_answer",
@@ -87,6 +89,7 @@ Respond with only "NEEDS_TOOL" or "DIRECT_ANSWER".
           parameters: { query: userInput }
         };
       } else {
+        console.log('Using tool-based answer');
         // For tool-based questions, use the original routing logic
         return await originalRouteQuery(userInput);
       }

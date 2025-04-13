@@ -52,18 +52,32 @@ export class MCPLLMRouter {
 
   async processQuery(userInput: string): Promise<string> {
     try {
+      console.log('\n--- Processing Query ---');
+      console.log(`User input: "${userInput}"`);
+      
       // Route the query to determine which tool to use
+      console.log('Routing query...');
       const routingInfo = await this.queryRouter.routeQuery(userInput);
+      console.log('Routing complete:', {
+        serverId: routingInfo.serverId,
+        toolName: routingInfo.toolName,
+        parameterCount: Object.keys(routingInfo.parameters).length
+      });
       
       // Execute the tool
+      console.log(`Executing tool: ${routingInfo.toolName} on server: ${routingInfo.serverId}`);
       const result = await this.toolExecutor.execute(
         routingInfo.serverId,
         routingInfo.toolName,
         routingInfo.parameters
       );
+      console.log('Tool execution complete');
       
       // Format the response
-      return await this.responseFormatter.formatResponse(result, userInput);
+      console.log('Formatting response...');
+      const formattedResponse = await this.responseFormatter.formatResponse(result, userInput);
+      console.log('--- Query Processing Complete ---\n');
+      return formattedResponse;
     } catch (error) {
       // Handle errors
       console.error('Error processing query:', error);

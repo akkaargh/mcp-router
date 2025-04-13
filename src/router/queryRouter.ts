@@ -50,7 +50,10 @@ For example, if the user asks "What is 5 plus 3?", you should identify that:
 - The "add" tool on the "calculator" server is appropriate
 - The parameters should be: { "a": 5, "b": 3 }
 
-Return your response in the following JSON format:
+If the user's query is ambiguous or missing required parameters (like "I want to add two numbers" without specifying which numbers), respond with:
+"I need more information. Which specific numbers would you like to add?"
+
+Return your response in the following JSON format ONLY if you have all required parameters:
 {
   "serverId": "the ID of the server",
   "toolName": "the name of the tool",
@@ -60,15 +63,47 @@ Return your response in the following JSON format:
   }
 }
 
-IMPORTANT: Make sure to include all required parameters with their correct types.
-For numeric parameters, use actual numbers (e.g., 5), not strings (e.g., "5").
+IMPORTANT: 
+1. Make sure to include all required parameters with their correct types.
+2. For numeric parameters, use actual numbers (e.g., 5), not strings (e.g., "5").
+3. If any required parameters are missing, DO NOT return JSON. Instead, ask for the missing information.
 `;
 
     const response = await this.llmProvider.generateResponse(prompt);
     
     try {
+      console.log('Raw LLM routing response:', response);
+      
+      // Check if the response is not in JSON format
+      if (!response.trim().startsWith('{')) {
+        // Try to handle ambiguous queries by asking for more information
+        if (response.toLowerCase().includes('need more information') || 
+            response.toLowerCase().includes('which numbers') ||
+            response.toLowerCase().includes('please specify')) {
+          
+          console.log('Detected ambiguous query that needs more information');
+          return {
+            serverId: "direct_answer",
+            toolName: "answer",
+            parameters: { 
+              query: `The user asked: "${userInput}". Please ask for the specific information needed to complete this request.` 
+            }
+          };
+        }
+        
+        // If it's not a request for more information, try to extract JSON from the response
+        const jsonMatch = response.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          console.log('Extracted JSON from non-JSON response');
+          response = jsonMatch[0];
+        } else {
+          throw new Error(`Response is not in JSON format: ${response.substring(0, 100)}...`);
+        }
+      }
+      
       // Parse the LLM's response to extract the routing information
       const parsedResponse = JSON.parse(response);
+      console.log('Parsed routing response:', parsedResponse);
       
       // Validate that we have the required fields
       if (!parsedResponse.serverId || !parsedResponse.toolName || !parsedResponse.parameters) {
@@ -86,6 +121,15 @@ For numeric parameters, use actual numbers (e.g., 5), not strings (e.g., "5").
         throw new Error(`Tool ${parsedResponse.toolName} not found on server ${parsedResponse.serverId}`);
       }
       
+      // Log parameter extraction
+      console.log('Extracted parameters:', {
+        original: parsedResponse.parameters,
+        types: Object.entries(parsedResponse.parameters).reduce((acc, [key, value]) => {
+          acc[key] = typeof value;
+          return acc;
+        }, {} as Record<string, string>)
+      });
+      
       // Return the validated and potentially converted parameters
       return {
         serverId: parsedResponse.serverId,
@@ -94,6 +138,19 @@ For numeric parameters, use actual numbers (e.g., 5), not strings (e.g., "5").
       };
     } catch (error) {
       console.error('Failed to parse LLM response:', error);
+      
+      // For ambiguous queries like "I want to add 2 numbers", provide a helpful response
+      if (userInput.toLowerCase().includes('add') && userInput.toLowerCase().includes('numbers')) {
+        console.log('Detected ambiguous math query, asking for clarification');
+        return {
+          serverId: "direct_answer",
+          toolName: "answer",
+          parameters: { 
+            query: `The user said: "${userInput}". Ask which specific numbers they want to add.` 
+          }
+        };
+      }
+      
       throw new Error('Failed to determine appropriate tool for the query');
     }
   }
