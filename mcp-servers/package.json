@@ -1,0 +1,11 @@
+{
+  "name": "calculator-server",
+  "version": "1.0.0",
+  "description": "MCP Calculator Server",
+  "type": "module",
+  "main": "calculator-server.js",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.9.0",
+    "zod": "^3.22.4"
+  }
+}

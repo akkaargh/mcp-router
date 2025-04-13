@@ -1,4 +1,7 @@
 import { ServerRegistry, MCPServerConfig } from '../registry/serverRegistry';
+import { McpClient } from "@modelcontextprotocol/sdk/client/mcp.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 
 export class ToolExecutor {
   constructor(private registry: ServerRegistry) {}
@@ -41,19 +44,29 @@ export class ToolExecutor {
     toolName: string, 
     parameters: Record<string, any>
   ): Promise<any> {
-    // This would be implemented with child_process in Node.js
-    // For now, we'll just simulate the execution
-    console.log(`Executing ${toolName} on ${serverConfig.name} via stdio`);
-    console.log(`Command: ${serverConfig.connection.command}`);
-    console.log(`Args: ${serverConfig.connection.args?.join(' ')}`);
-    console.log(`Parameters: ${JSON.stringify(parameters)}`);
+    // Create an MCP client for stdio
+    const transport = new StdioClientTransport({
+      command: serverConfig.connection.command || '',
+      args: serverConfig.connection.args || []
+    });
     
-    // Simulate a response
-    return {
-      success: true,
-      result: `Result from ${toolName} on ${serverConfig.name}`,
-      timestamp: new Date().toISOString()
-    };
+    const client = new McpClient();
+    
+    try {
+      // Connect to the server
+      await client.connect(transport);
+      
+      // Call the tool
+      const result = await client.callTool({
+        name: toolName,
+        arguments: parameters
+      });
+      
+      return result;
+    } finally {
+      // Disconnect from the server
+      await client.disconnect();
+    }
   }
 
   private async executeViaSse(
@@ -61,17 +74,27 @@ export class ToolExecutor {
     toolName: string, 
     parameters: Record<string, any>
   ): Promise<any> {
-    // This would be implemented with fetch or a similar HTTP client
-    // For now, we'll just simulate the execution
-    console.log(`Executing ${toolName} on ${serverConfig.name} via SSE`);
-    console.log(`URL: ${serverConfig.connection.url}`);
-    console.log(`Parameters: ${JSON.stringify(parameters)}`);
+    // Create an MCP client for SSE
+    const transport = new SSEClientTransport({
+      url: serverConfig.connection.url || ''
+    });
     
-    // Simulate a response
-    return {
-      success: true,
-      result: `Result from ${toolName} on ${serverConfig.name}`,
-      timestamp: new Date().toISOString()
-    };
+    const client = new McpClient();
+    
+    try {
+      // Connect to the server
+      await client.connect(transport);
+      
+      // Call the tool
+      const result = await client.callTool({
+        name: toolName,
+        arguments: parameters
+      });
+      
+      return result;
+    } finally {
+      // Disconnect from the server
+      await client.disconnect();
+    }
   }
 }

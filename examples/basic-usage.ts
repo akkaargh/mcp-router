@@ -1,5 +1,6 @@
 import { MCPLLMRouter } from '../src';
 import dotenv from 'dotenv';
+import { z } from 'zod';
 
 // Load environment variables
 dotenv.config();
@@ -16,24 +17,40 @@ async function main() {
     connection: {
       type: 'stdio',
       command: 'node',
-      args: ['calculator-server.js']
+      args: ['./mcp-servers/calculator-server.js']
     },
     tools: [
       {
         name: 'add',
-        description: 'Add two numbers'
+        description: 'Add two numbers',
+        paramSchema: z.object({
+          a: z.number().describe('First number'),
+          b: z.number().describe('Second number')
+        })
       },
       {
         name: 'subtract',
-        description: 'Subtract two numbers'
+        description: 'Subtract two numbers',
+        paramSchema: z.object({
+          a: z.number().describe('First number'),
+          b: z.number().describe('Second number')
+        })
       },
       {
         name: 'multiply',
-        description: 'Multiply two numbers'
+        description: 'Multiply two numbers',
+        paramSchema: z.object({
+          a: z.number().describe('First number'),
+          b: z.number().describe('Second number')
+        })
       },
       {
         name: 'divide',
-        description: 'Divide two numbers'
+        description: 'Divide two numbers',
+        paramSchema: z.object({
+          a: z.number().describe('First number'),
+          b: z.number().describe('Second number')
+        })
       }
     ]
   });

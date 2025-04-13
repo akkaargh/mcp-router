@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 interface MCPServerConfig {
   id: string;
   name: string;
@@ -11,6 +13,7 @@ interface MCPServerConfig {
   tools: Array<{
     name: string;
     description: string;
+    paramSchema?: z.ZodObject<any>;
   }>;
 }
 
