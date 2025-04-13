@@ -67,10 +67,13 @@ async function main() {
       try {
         console.log('Processing...');
         const response = await router.processQuery(userInput);
-        console.log(chalk.white(response));
+        // Add a separator line before the response for better visibility
+        console.log('\n' + chalk.bold.white('─'.repeat(50)));
+        console.log(chalk.bold.white(response));
+        console.log(chalk.bold.white('─'.repeat(50)) + '\n');
       } catch (error) {
         console.error('Error:', error);
-        console.log(chalk.red('Sorry, I encountered an error processing your request.'));
+        console.log(chalk.bold.red('Sorry, I encountered an error processing your request.'));
       }
 
       // Continue the loop

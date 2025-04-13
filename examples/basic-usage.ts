@@ -27,21 +27,27 @@ async function main() {
     console.log('Routing information:', JSON.stringify(routingInfo, null, 2));
     
     const response = await router.processQuery(userQuery);
-    console.log(`Response: ${chalk.white(response)}`);
+    console.log('\n' + chalk.bold.white('─'.repeat(50)));
+    console.log(chalk.bold.white(response));
+    console.log(chalk.bold.white('─'.repeat(50)) + '\n');
     
     // Try a follow-up query that should use conversation history
     const followUpQuery = 'What calculation did I just ask you to perform?';
     console.log(`\nFollow-up query: ${followUpQuery}`);
     
     const followUpResponse = await router.processQuery(followUpQuery);
-    console.log(`Response: ${chalk.white(followUpResponse)}`);
+    console.log('\n' + chalk.bold.white('─'.repeat(50)));
+    console.log(chalk.bold.white(followUpResponse));
+    console.log(chalk.bold.white('─'.repeat(50)) + '\n');
     
     // Try a flow-related query
     const flowQuery = 'I want to create a new server for weather data';
     console.log(`\nFlow query: ${flowQuery}`);
     
     const flowResponse = await router.processQuery(flowQuery);
-    console.log(`Response: ${chalk.white(flowResponse)}`);
+    console.log('\n' + chalk.bold.white('─'.repeat(50)));
+    console.log(chalk.bold.white(flowResponse));
+    console.log(chalk.bold.white('─'.repeat(50)) + '\n');
   } catch (error) {
     console.error('Error:', error);
   }
