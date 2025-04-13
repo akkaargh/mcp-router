@@ -8,7 +8,7 @@ import { ConfigManager } from './config/configManager';
 export class MCPLLMRouter {
   private llmProvider: LLMProvider;
   private serverRegistry: ServerRegistry;
-  private queryRouter: QueryRouter;
+  queryRouter: QueryRouter; // Changed from private to public
   private toolExecutor: ToolExecutor;
   private responseFormatter: ResponseFormatter;
 

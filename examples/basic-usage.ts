@@ -59,8 +59,16 @@ async function main() {
   const userQuery = 'What is 5 plus 3?';
   console.log(`User query: ${userQuery}`);
   
-  const response = await router.processQuery(userQuery);
-  console.log(`Response: ${response}`);
+  try {
+    // Log the routing information before executing the tool
+    const routingInfo = await router.queryRouter.routeQuery(userQuery);
+    console.log('Routing information:', JSON.stringify(routingInfo, null, 2));
+    
+    const response = await router.processQuery(userQuery);
+    console.log(`Response: ${response}`);
+  } catch (error) {
+    console.error('Error:', error);
+  }
 }
 
 main().catch(error => {
