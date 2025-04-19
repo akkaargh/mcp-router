@@ -185,8 +185,11 @@ The user asked: "${userInput}"
 
 I need to use the ${routingInfo.tool.name} tool from the ${routingInfo.tool.serverId} server, but I'm missing these parameters: ${routingInfo.tool.missing_parameters.join(', ')}.
 
-Please create a natural, conversational response asking the user to provide these missing values. 
+Respond directly to the user in a natural, conversational way asking for the missing values.
 For example, instead of saying "Please provide values for: a, b", say something like "Could you tell me the two numbers you'd like to add?"
+
+DO NOT start your response with phrases like "Here's a natural way to ask..." or "Certainly! Here's...".
+Just respond as if you are directly asking the user for the information.
 `;
             const missingParamsResponse = await this.responseFormatter.generateResponse(missingParamsPrompt);
             console.log('Missing parameters request formatted');
