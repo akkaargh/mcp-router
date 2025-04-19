@@ -95,7 +95,8 @@ export class QueryRouter {
     try {
       // Parse the JSON string
       const parsedResponse = JSON.parse(jsonString);
-      console.log('Parsed tool decision response:', parsedResponse);
+      // Remove this console.log to avoid redundancy
+      // console.log('Parsed tool decision response:', parsedResponse);
       
       // Validate that we have the required fields
       if (!parsedResponse.action || !parsedResponse.response || !parsedResponse.reasoning) {
@@ -281,9 +282,9 @@ For removing a server with file deletion:
 
     try {
       // Get the LLM's decision
-      console.log('Sending tool decision prompt to LLM...');
+      console.log('Sending query to LLM for routing decision...');
       const response = await this.llmProvider.generateResponse(prompt);
-      console.log('Raw LLM tool decision response:', response);
+      console.log('LLM routing response:', response);
       
       // Extract JSON from the response if needed
       const jsonString = this.extractJsonFromResponse(response) || response;
@@ -291,7 +292,7 @@ For removing a server with file deletion:
       // Parse the response
       const decision = this.parseToolDecisionResponse(jsonString);
       
-      // Return the decision directly
+      // Return the decision directly without additional logging
       return decision;
       
     } catch (error) {

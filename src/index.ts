@@ -153,13 +153,13 @@ export class MCPLLMRouter {
       // Otherwise, proceed with normal tool routing
       console.log('Routing query to tools...');
       const routingInfo = await this.queryRouter.routeQuery(userInput);
-      console.log('Routing complete:', routingInfo);
       
       // Handle different actions based on the LLM's decision
       switch (routingInfo.action) {
         case 'respond_directly':
         case 'direct_response':
           // Handle direct response
+          console.log('LLM decided to respond directly');
           const directResponse = routingInfo.response || 'I understand your request.';
           this.addToMemory('assistant', directResponse);
           return directResponse;
@@ -170,27 +170,51 @@ export class MCPLLMRouter {
             throw new Error('Tool information missing for call_tool action');
           }
           
-          console.log(`Executing tool: ${routingInfo.tool.name} on server: ${routingInfo.tool.serverId}`);
-          const result = await this.toolExecutor.execute(
-            routingInfo.tool.serverId,
-            routingInfo.tool.name,
-            routingInfo.tool.parameters
-          );
+          console.log(`\n--- MCP Server Tool Call ---`);
+          console.log(`Tool: ${routingInfo.tool.name}`);
+          console.log(`Server: ${routingInfo.tool.serverId}`);
+          console.log(`Parameters:`, routingInfo.tool.parameters);
           
-          // Format the response
-          console.log('Formatting response...');
-          const formattedResponse = await this.responseFormatter.formatResponse(result, userInput);
-          this.addToMemory('assistant', formattedResponse);
-          return formattedResponse;
+          if (routingInfo.tool.missing_parameters.length > 0) {
+            console.log(`Missing parameters: ${routingInfo.tool.missing_parameters.join(', ')}`);
+            const missingParamsResponse = `I need more information to complete this request. Please provide values for: ${routingInfo.tool.missing_parameters.join(', ')}`;
+            this.addToMemory('assistant', missingParamsResponse);
+            return missingParamsResponse;
+          }
+          
+          try {
+            const result = await this.toolExecutor.execute(
+              routingInfo.tool.serverId,
+              routingInfo.tool.name,
+              routingInfo.tool.parameters
+            );
+            
+            console.log(`Tool execution result:`, result);
+            console.log(`--- MCP Server Tool Call Complete ---\n`);
+            
+            // Format the response
+            console.log('\n--- Formatting Response with LLM ---');
+            const formattedResponse = await this.responseFormatter.formatResponse(result, userInput);
+            console.log('Formatted response complete');
+            console.log(`--- Response Formatting Complete ---\n`);
+            
+            this.addToMemory('assistant', formattedResponse);
+            return formattedResponse;
+          } catch (error) {
+            console.error(`Error executing tool:`, error);
+            throw error;
+          }
           
         case 'list_servers':
           // List all servers
+          console.log('LLM decided to list servers');
           const serversResponse = this.listServers();
           this.addToMemory('assistant', serversResponse);
           return serversResponse;
           
         case 'server_status':
           // Get server status
+          console.log('LLM decided to check server status');
           const statusResponse = this.getServerStatus();
           this.addToMemory('assistant', statusResponse);
           return statusResponse;
@@ -201,6 +225,7 @@ export class MCPLLMRouter {
             throw new Error('Server ID missing for activate_server action');
           }
           
+          console.log(`LLM decided to activate server: ${routingInfo.server.id}`);
           const activateResponse = this.activateServerCommand(routingInfo.server.id);
           this.addToMemory('assistant', activateResponse);
           return activateResponse;
@@ -211,6 +236,7 @@ export class MCPLLMRouter {
             throw new Error('Server ID missing for deactivate_server action');
           }
           
+          console.log(`LLM decided to deactivate server: ${routingInfo.server.id}`);
           const deactivateResponse = this.deactivateServerCommand(routingInfo.server.id);
           this.addToMemory('assistant', deactivateResponse);
           return deactivateResponse;
@@ -221,6 +247,7 @@ export class MCPLLMRouter {
             throw new Error('Server ID missing for remove_server action');
           }
           
+          console.log(`LLM decided to remove server: ${routingInfo.server.id}`);
           const deleteFiles = routingInfo.server.deleteFiles || false;
           const removeResponse = this.removeServerCommand(routingInfo.server.id, deleteFiles);
           this.addToMemory('assistant', removeResponse);
@@ -232,6 +259,7 @@ export class MCPLLMRouter {
             throw new Error('Server ID missing for install_server action');
           }
           
+          console.log(`LLM decided to install dependencies for server: ${routingInfo.server.id}`);
           const installResponse = await this.installServerDependenciesCommand(routingInfo.server.id);
           this.addToMemory('assistant', installResponse);
           return installResponse;
@@ -247,7 +275,11 @@ export class MCPLLMRouter {
     } catch (error) {
       // Handle errors
       console.error('Error processing query:', error);
+      
+      console.log('\n--- Formatting Error Response with LLM ---');
       const errorResponse = await this.responseFormatter.formatError(error as Error, userInput);
+      console.log('Error response formatting complete');
+      console.log(`--- Error Response Formatting Complete ---\n`);
       
       // Add the error response to memory
       this.addToMemory('assistant', errorResponse);
