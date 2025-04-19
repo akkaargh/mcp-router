@@ -12,7 +12,8 @@ interface ToolDecisionResponse {
     'activate_server' | 
     'deactivate_server' | 
     'remove_server' |
-    'install_server';
+    'install_server' |
+    'direct_response';
   response: string;
   reasoning: string;
   tool?: {
