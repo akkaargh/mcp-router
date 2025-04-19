@@ -158,6 +158,7 @@ export class MCPLLMRouter {
       // Handle different actions based on the LLM's decision
       switch (routingInfo.action) {
         case 'respond_directly':
+        case 'direct_response':
           // Handle direct response
           const directResponse = routingInfo.response || 'I understand your request.';
           this.addToMemory('assistant', directResponse);

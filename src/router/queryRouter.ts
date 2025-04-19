@@ -180,8 +180,9 @@ ${toolsDescription}
 
 Based on the above, decide on the appropriate action to take. You can:
 
-1. RESPOND DIRECTLY: Answer the user's question using your knowledge or the conversation history.
+1. DIRECT RESPONSE: Answer the user's question using your knowledge or the conversation history.
    - Use this for general knowledge questions, explanations, or when no specific tool is needed.
+   - IMPORTANT: For general knowledge questions like "What is the capital of France?", ALWAYS use direct_response, NOT call_tool.
 
 2. CALL A TOOL: Use one of the available tools to fulfill the user's request.
    - Use this when the user's request requires computation or external data.
@@ -197,7 +198,7 @@ Based on the above, decide on the appropriate action to take. You can:
 Respond in the following JSON format:
 
 {
-  "action": "respond_directly" | "call_tool" | "list_servers" | "server_status" | "activate_server" | "deactivate_server" | "remove_server" | "install_server",
+  "action": "direct_response" | "call_tool" | "list_servers" | "server_status" | "activate_server" | "deactivate_server" | "remove_server" | "install_server",
   "response": "Your message to the user explaining the action taken.",
   "reasoning": "Explanation of why this action is appropriate.",
   "tool": {
@@ -227,9 +228,9 @@ Examples:
 
 For direct response:
 {
-  "action": "respond_directly",
-  "response": "Based on our conversation, your name is Eric.",
-  "reasoning": "The user is asking about information shared earlier in the conversation history."
+  "action": "direct_response",
+  "response": "The capital of France is Paris.",
+  "reasoning": "This is a general knowledge question that I can answer directly without using a tool."
 }
 
 For tool invocation with all parameters:

@@ -78,5 +78,5 @@ export const directAnswerServer: MCPServerConfig = {
  * Get all default server configurations
  */
 export function getDefaultServers(): MCPServerConfig[] {
-  return [calculatorServer, directAnswerServer, filesystemServer];
+  return [calculatorServer, filesystemServer];
 }
