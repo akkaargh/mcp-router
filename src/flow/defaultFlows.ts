@@ -297,8 +297,8 @@ Return ONLY the corrected code, without any explanation or markdown formatting.
         // Save the file using the filesystem MCP server
         try {
           // Create a server directory
-          const serverName = serverDetails.serverName || 'custom-server';
-          const serverDir = `servers/${serverName.toLowerCase().replace(/\s+/g, '-')}`;
+          const serverDirName = serverDetails.serverName || 'custom-server';
+          const serverDir = `servers/${serverDirName.toLowerCase().replace(/\s+/g, '-')}`;
           
           // Create the directory if it doesn't exist
           await toolExecutor.execute('filesystem', 'create_directory', {
@@ -316,9 +316,9 @@ Return ONLY the corrected code, without any explanation or markdown formatting.
           await toolExecutor.execute('filesystem', 'write_file', {
             path: `${serverDir}/package.json`,
             content: JSON.stringify({
-              "name": serverName.toLowerCase().replace(/\s+/g, '-'),
+              "name": serverDirName.toLowerCase().replace(/\s+/g, '-'),
               "version": "1.0.0",
-              "description": serverDetails.serverDescription || `MCP server for ${serverName}`,
+              "description": serverDetails.serverDescription || `MCP server for ${serverDirName}`,
               "type": "module",
               "main": serverFilename,
               "dependencies": {
@@ -373,7 +373,7 @@ Return a JSON array of tool names only, like: ["toolName1", "toolName2"]
           }
           
           // Save server configuration for registration
-          const serverId = serverName.toLowerCase().replace(/\s+/g, '_');
+          const serverId = serverDirName.toLowerCase().replace(/\s+/g, '_');
           serverDetails.serverConfig = {
             id: serverId,
             name: serverName,
@@ -440,6 +440,7 @@ or
               // Add the server to the registry
               serverRegistry.addServer(serverDetails.serverConfig);
               
+              const registeredServerId = serverDetails.serverConfig.id;
               response = `Success! I've registered the ${serverDetails.serverConfig.name} server with the system.
 
 Would you like me to install the dependencies for this server now? This will run 'npm install' in the server directory.
@@ -447,10 +448,10 @@ Would you like me to install the dependencies for this server now? This will run
 You can also manage your server with these commands:
 - Ask to "list servers" - Show all available servers
 - Ask for "server status" - Check which servers are active
-- Ask to "activate server ${serverId}" - Enable the server if it's disabled
-- Ask to "deactivate server ${serverId}" - Temporarily disable the server
-- Ask to "remove server ${serverId}" - Remove the server from the registry
-- Ask to "install dependencies for server ${serverId}" - Install dependencies for the server
+- Ask to "activate server ${registeredServerId}" - Enable the server if it's disabled
+- Ask to "deactivate server ${registeredServerId}" - Temporarily disable the server
+- Ask to "remove server ${registeredServerId}" - Remove the server from the registry
+- Ask to "install dependencies for server ${registeredServerId}" - Install dependencies for the server
 
 Is there anything else you'd like to know about your new server?`;
             } catch (error) {
