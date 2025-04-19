@@ -69,7 +69,11 @@ export class ToolExecutor {
         if (tools && Array.isArray(tools.tools)) {
           tools.tools.forEach((tool: any) => {
             console.log(`Tool: ${tool.name}`);
-            console.log(`Description: ${tool.description}`);
+            // Handle case where description might be undefined
+            const description = tool.description || 
+                               (serverConfig.tools.find(t => t.name === tool.name)?.description) || 
+                               `Tool for ${tool.name}`;
+            console.log(`Description: ${description}`);
             console.log('Parameters:', JSON.stringify(tool.inputSchema?.properties || {}, null, 2));
             console.log('---');
           });

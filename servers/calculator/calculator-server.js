@@ -8,45 +8,59 @@ const server = new McpServer({
   version: "1.0.0"
 });
 
+// Define tool schemas with descriptions
+const addSchema = {
+  a: z.number().describe("First number to add"),
+  b: z.number().describe("Second number to add")
+};
+
+const subtractSchema = {
+  a: z.number().describe("Number to subtract from"),
+  b: z.number().describe("Number to subtract")
+};
+
+const multiplySchema = {
+  a: z.number().describe("First number to multiply"),
+  b: z.number().describe("Second number to multiply")
+};
+
+const divideSchema = {
+  a: z.number().describe("Number to divide (dividend)"),
+  b: z.number().describe("Number to divide by (divisor)")
+};
+
 // Add calculator tools with detailed descriptions
-server.tool("add",
-  { 
-    a: z.number().describe("First number to add"),
-    b: z.number().describe("Second number to add")
-  },
+const addTool = server.tool(
+  "add",
+  addSchema,
   async ({ a, b }) => ({
     content: [{ type: "text", text: String(a + b) }]
-  }),
-  "Add two numbers together. Use this tool for addition operations."
+  })
 );
+// Set description explicitly
+addTool.description = "Add two numbers together. Use this tool for addition operations.";
 
-server.tool("subtract",
-  { 
-    a: z.number().describe("Number to subtract from"),
-    b: z.number().describe("Number to subtract")
-  },
+const subtractTool = server.tool(
+  "subtract",
+  subtractSchema,
   async ({ a, b }) => ({
     content: [{ type: "text", text: String(a - b) }]
-  }),
-  "Subtract the second number from the first. Use this tool for subtraction operations."
+  })
 );
+subtractTool.description = "Subtract the second number from the first. Use this tool for subtraction operations.";
 
-server.tool("multiply",
-  { 
-    a: z.number().describe("First number to multiply"),
-    b: z.number().describe("Second number to multiply")
-  },
+const multiplyTool = server.tool(
+  "multiply",
+  multiplySchema,
   async ({ a, b }) => ({
     content: [{ type: "text", text: String(a * b) }]
-  }),
-  "Multiply two numbers together. Use this tool for multiplication operations."
+  })
 );
+multiplyTool.description = "Multiply two numbers together. Use this tool for multiplication operations.";
 
-server.tool("divide",
-  { 
-    a: z.number().describe("Number to divide (dividend)"),
-    b: z.number().describe("Number to divide by (divisor)")
-  },
+const divideTool = server.tool(
+  "divide",
+  divideSchema,
   async ({ a, b }) => {
     if (b === 0) {
       return {
@@ -57,9 +71,9 @@ server.tool("divide",
     return {
       content: [{ type: "text", text: String(a / b) }]
     };
-  },
-  "Divide the first number by the second. Use this tool for division operations. Returns an error if attempting to divide by zero."
+  }
 );
+divideTool.description = "Divide the first number by the second. Use this tool for division operations. Returns an error if attempting to divide by zero.";
 
 // Start receiving messages on stdin and sending messages on stdout
 const transport = new StdioServerTransport();
