@@ -75,6 +75,20 @@ export class FlowRouter {
     const flowsDescription = this.getFlowsDescription();
     const historyText = this.getConversationHistoryText();
     
+    // First, check if this is a server listing request that should NOT be handled by a flow
+    if (userInput.toLowerCase().includes("list mcp servers") || 
+        userInput.toLowerCase().includes("list the mcp servers") ||
+        userInput.toLowerCase().includes("list servers for this") ||
+        userInput.toLowerCase().includes("show mcp servers") ||
+        userInput.toLowerCase().includes("show the mcp servers") ||
+        userInput.toLowerCase().includes("what mcp servers") ||
+        (userInput.toLowerCase().includes("list") && userInput.toLowerCase().includes("servers") && 
+         (userInput.toLowerCase().includes("app") || userInput.toLowerCase().includes("application") || 
+          userInput.toLowerCase().includes("program")))) {
+      // This is likely a request to list servers, not create a new one
+      return { shouldUseFlow: false };
+    }
+    
     // Construct the prompt for the LLM
     const prompt = `
 You are an intelligent assistant designed to determine whether a user's query requires invoking a specialized flow or should be handled by the regular tool routing system.
@@ -84,6 +98,11 @@ User input: "${userInput}"
 
 Available Flows:
 ${flowsDescription}
+
+IMPORTANT GUIDELINES:
+- If the user is asking to list, show, or get information about MCP servers in this application, do NOT use a flow. These requests should be handled by the regular tool routing system.
+- Only use the server_builder flow if the user explicitly wants to CREATE a new server, not if they want to LIST existing servers.
+- Only use the flow_builder flow if the user explicitly wants to CREATE a new flow, not if they want information about flows.
 
 Based on the above, decide whether to:
 1. Invoke a specific flow to handle the user's request
@@ -103,8 +122,9 @@ Respond in the following JSON format:
 
 Notes:
 - If shouldUseFlow is false, the flowId and params fields can be omitted.
-- Only set shouldUseFlow to true if the user's query clearly indicates they want to use a specific flow.
+- Only set shouldUseFlow to true if the user's query clearly indicates they want to CREATE or BUILD something new.
 - Extract any relevant parameters from the user's query to pass to the flow.
+- Remember: Requests to LIST or SHOW existing servers should return shouldUseFlow: false.
 `;
 
     try {

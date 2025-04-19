@@ -137,6 +137,23 @@ export class MCPLLMRouter {
           flowRouting.params
         );
         
+        // Check if the flow is redirecting to a server action
+        if (flowResult.metadata?.shouldRedirect && flowResult.metadata?.redirectAction) {
+          console.log(`Flow redirecting to action: ${flowResult.metadata.redirectAction}`);
+          
+          // Handle the redirection based on the action
+          switch (flowResult.metadata.redirectAction) {
+            case 'list_servers':
+              console.log('Redirecting to list servers action');
+              const serversResponse = this.listServers();
+              this.addToMemory('assistant', serversResponse);
+              return serversResponse;
+            default:
+              // For other actions, just continue with the flow response
+              break;
+          }
+        }
+        
         // Add the flow's response to memory
         this.addToMemory('assistant', flowResult.response);
         

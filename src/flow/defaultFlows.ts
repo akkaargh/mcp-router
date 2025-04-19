@@ -19,6 +19,24 @@ export const serverBuilderFlow: Flow = {
   execute: async (context: FlowContext): Promise<FlowResult> => {
     const { llmProvider, userQuery, params, memory, serverRegistry, toolExecutor } = context;
     
+    // Check if this is actually a request to list servers rather than create one
+    if (userQuery.toLowerCase().includes("list") && 
+        userQuery.toLowerCase().includes("server") &&
+        (userQuery.toLowerCase().includes("mcp") || 
+         userQuery.toLowerCase().includes("this app") || 
+         userQuery.toLowerCase().includes("application") || 
+         userQuery.toLowerCase().includes("program"))) {
+      
+      // This appears to be a request to list servers, not create one
+      return {
+        response: "I notice you're asking to list the MCP servers for this application. Let me redirect you to the server listing functionality instead of the server builder.",
+        metadata: {
+          shouldRedirect: true,
+          redirectAction: "list_servers"
+        }
+      };
+    }
+    
     // Initialize or update server details
     const serverDetails = params.serverDetails || {};
     let stage = params.stage || 'intro';
@@ -38,6 +56,8 @@ export const serverBuilderFlow: Flow = {
         // Initial introduction
         prompt = `
 You are an expert MCP (Model Context Protocol) server developer. The user wants to create a new MCP server. They said: "${userQuery}"
+
+IMPORTANT: If the user is asking to LIST servers or get information about EXISTING servers, respond that you'll redirect them to the server listing functionality.
 
 Based on their request, you need to help them create a TypeScript MCP server that will be saved to the mcp-servers folder.
 
