@@ -79,9 +79,17 @@ export class QueryRouter {
     
     if (conversationHistory.length > 0) {
       historyText = 'Conversation History:\n';
-      conversationHistory.forEach(msg => {
-        historyText += `${msg.role}: ${msg.content}\n`;
+      
+      // Only include the last 10 messages to keep context manageable
+      const recentMessages = conversationHistory.slice(-10);
+      
+      recentMessages.forEach(msg => {
+        // Skip system messages in the displayed history
+        if (msg.role !== 'system') {
+          historyText += `${msg.role}: ${msg.content}\n`;
+        }
       });
+      
       historyText += '\n';
     }
     
@@ -93,10 +101,11 @@ export class QueryRouter {
    */
   private parseToolDecisionResponse(jsonString: string): ToolDecisionResponse {
     try {
+      // Clean the JSON string to handle control characters
+      const cleanedJson = jsonString.replace(/[\n\r\t\b\f\v]/g, ' ');
+      
       // Parse the JSON string
-      const parsedResponse = JSON.parse(jsonString);
-      // Remove this console.log to avoid redundancy
-      // console.log('Parsed tool decision response:', parsedResponse);
+      const parsedResponse = JSON.parse(cleanedJson);
       
       // Validate that we have the required fields
       if (!parsedResponse.action || !parsedResponse.response || !parsedResponse.reasoning) {
@@ -152,11 +161,18 @@ export class QueryRouter {
    * Extract JSON from a text response that might contain additional content
    */
   private extractJsonFromResponse(response: string): string | null {
-    const jsonMatch = response.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      return jsonMatch[0];
+    try {
+      // Try to find JSON object in the response
+      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        // Clean the JSON string to handle control characters
+        return jsonMatch[0].replace(/[\n\r\t\b\f\v]/g, ' ');
+      }
+      return null;
+    } catch (error) {
+      console.error('Error extracting JSON from response:', error);
+      return null;
     }
-    return null;
   }
 
   /**
@@ -308,11 +324,36 @@ For removing a server with file deletion:
     } catch (error) {
       console.error('Error in routing query:', error);
       
+      // Try to extract a meaningful response from the LLM output even if JSON parsing failed
+      let fallbackResponse = `I'm having trouble understanding how to process your request: "${userInput}". Could you please rephrase or provide more details?`;
+      
+      // If we have a response from the LLM, try to use it
+      if (typeof response === 'string' && response.length > 0) {
+        // Look for a response field in the text
+        const responseMatch = response.match(/"response"\s*:\s*"([^"]+)"/);
+        if (responseMatch && responseMatch[1]) {
+          fallbackResponse = responseMatch[1].replace(/\\n/g, '\n');
+        } else {
+          // If no response field, just use the first paragraph that's not JSON-like
+          const paragraphs = response.split('\n').filter(p => 
+            p.trim().length > 0 && 
+            !p.includes('{') && 
+            !p.includes('}') && 
+            !p.includes('"action"') &&
+            !p.includes('"reasoning"')
+          );
+          
+          if (paragraphs.length > 0) {
+            fallbackResponse = paragraphs[0];
+          }
+        }
+      }
+      
       // Fallback to direct answer
       return {
-        action: 'respond_directly',
-        response: `I'm having trouble understanding how to process your request: "${userInput}". Could you please rephrase or provide more details?`,
-        reasoning: 'Error parsing LLM response'
+        action: 'direct_response',
+        response: fallbackResponse,
+        reasoning: 'Error parsing LLM response, using fallback'
       };
     }
   }
