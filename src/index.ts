@@ -179,7 +179,7 @@ export class MCPLLMRouter {
             console.log(`Missing parameters: ${routingInfo.tool.missing_parameters.join(', ')}`);
             
             // Use LLM to create a natural language request for the missing parameters
-            console.log('\n--- Formatting Missing Parameters Request with LLM ---');
+            console.log('\n--- LLM Call for Missing Parameters Request ---');
             const missingParamsPrompt = `
 The user asked: "${userInput}"
 
@@ -191,9 +191,10 @@ For example, instead of saying "Please provide values for: a, b", say something 
 DO NOT start your response with phrases like "Here's a natural way to ask..." or "Certainly! Here's...".
 Just respond as if you are directly asking the user for the information.
 `;
+            console.log(`Sending query to LLM for natural language missing parameters request: ${routingInfo.tool.missing_parameters.join(', ')}`);
             const missingParamsResponse = await this.responseFormatter.generateResponse(missingParamsPrompt);
-            console.log('Missing parameters request formatted');
-            console.log(`--- Missing Parameters Formatting Complete ---\n`);
+            console.log('LLM response:', missingParamsResponse);
+            console.log(`--- LLM Call for Missing Parameters Complete ---\n`);
             
             this.addToMemory('assistant', missingParamsResponse);
             return missingParamsResponse;
@@ -210,10 +211,11 @@ Just respond as if you are directly asking the user for the information.
             console.log(`--- MCP Server Tool Call Complete ---\n`);
             
             // Format the response
-            console.log('\n--- Formatting Response with LLM ---');
+            console.log('\n--- LLM Call for Tool Result Formatting ---');
+            console.log(`Sending query to LLM for natural language response for tool result: ${JSON.stringify(result)}`);
             const formattedResponse = await this.responseFormatter.formatResponse(result, userInput);
-            console.log('Formatted response complete');
-            console.log(`--- Response Formatting Complete ---\n`);
+            console.log('LLM response:', formattedResponse);
+            console.log(`--- LLM Call for Tool Result Complete ---\n`);
             
             this.addToMemory('assistant', formattedResponse);
             return formattedResponse;
@@ -293,10 +295,11 @@ Just respond as if you are directly asking the user for the information.
       // Handle errors
       console.error('Error processing query:', error);
       
-      console.log('\n--- Formatting Error Response with LLM ---');
+      console.log('\n--- LLM Call for Error Response ---');
+      console.log(`Sending query to LLM for natural language response for error: ${error.message}`);
       const errorResponse = await this.responseFormatter.formatError(error as Error, userInput);
-      console.log('Error response formatting complete');
-      console.log(`--- Error Response Formatting Complete ---\n`);
+      console.log('LLM response:', errorResponse);
+      console.log(`--- LLM Call for Error Response Complete ---\n`);
       
       // Add the error response to memory
       this.addToMemory('assistant', errorResponse);
