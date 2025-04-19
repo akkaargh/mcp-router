@@ -206,15 +206,20 @@ Based on the above, decide on the appropriate action to take. You can:
    - Use this when the user's request requires computation or external data.
 
 3. MANAGE MCP SERVERS: Perform operations on the MCP servers registered with this application.
-   - IMPORTANT: Only use these actions when the user is clearly referring to MCP servers registered with this application, not general server types or concepts.
-   - If the user asks to "list servers", "show MCP servers", "what MCP servers are available", use action: "list_servers"
-   - If the user asks about "server status", "which MCP servers are active", use action: "server_status"
-   - If the user asks to "activate server X", "enable MCP server X", use action: "activate_server"
-   - If the user asks to "deactivate server X", "disable MCP server X", use action: "deactivate_server"
-   - If the user asks to "remove server X", "delete MCP server X", use action: "remove_server"
+   - IMPORTANT: If the user mentions "MCP servers", "servers for this program", "servers in this application", 
+     or similar phrases, they are likely referring to the MCP servers registered with this application.
+   - If the user asks to "list servers", "show servers", "what servers are available", "list mcp servers", 
+     "show me the servers", or similar phrases, use action: "list_servers"
+   - If the user asks about "server status", "which servers are active", "active servers", 
+     use action: "server_status"
+   - If the user asks to "activate server X", "enable server X", use action: "activate_server"
+   - If the user asks to "deactivate server X", "disable server X", use action: "deactivate_server"
+   - If the user asks to "remove server X", "delete server X", use action: "remove_server"
    - If the user asks to "install dependencies for server X", use action: "install_server"
    
    If the user is asking about servers in general (like web servers, application servers, etc.) and NOT about the MCP servers registered with this application, use "direct_response" instead.
+   
+   IMPORTANT: If the user has previously asked about general server types and then follows up with a request like "list servers" or "show servers", they are likely now asking about the MCP servers in this application, especially if they clarify with phrases like "no, I mean the servers in this program".
 
 Respond in the following JSON format:
 
@@ -275,6 +280,13 @@ For listing MCP servers:
   "action": "list_servers",
   "response": "Here are all the available MCP servers registered with this application.",
   "reasoning": "The user is specifically asking about the MCP servers registered with this application, not about servers in general."
+}
+
+For listing MCP servers after a clarification:
+{
+  "action": "list_servers",
+  "response": "Let me show you the MCP servers registered with this application.",
+  "reasoning": "Although the user initially asked about servers in general, they have now clarified that they want to see the MCP servers in this application."
 }
 
 For a general question about server types:
