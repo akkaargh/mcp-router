@@ -306,14 +306,15 @@ For removing a server with file deletion:
 }
 `;
 
+    let llmResponse = '';
     try {
       // Get the LLM's decision
       console.log('Sending query to LLM for routing decision...');
-      const response = await this.llmProvider.generateResponse(prompt);
-      console.log('LLM routing response:', response);
+      llmResponse = await this.llmProvider.generateResponse(prompt);
+      console.log('LLM routing response:', llmResponse);
       
       // Extract JSON from the response if needed
-      const jsonString = this.extractJsonFromResponse(response) || response;
+      const jsonString = this.extractJsonFromResponse(llmResponse) || llmResponse;
       
       // Parse the response
       const decision = this.parseToolDecisionResponse(jsonString);
@@ -328,14 +329,14 @@ For removing a server with file deletion:
       let fallbackResponse = `I'm having trouble understanding how to process your request: "${userInput}". Could you please rephrase or provide more details?`;
       
       // If we have a response from the LLM, try to use it
-      if (typeof response === 'string' && response.length > 0) {
+      if (typeof llmResponse === 'string' && llmResponse.length > 0) {
         // Look for a response field in the text
-        const responseMatch = response.match(/"response"\s*:\s*"([^"]+)"/);
+        const responseMatch = llmResponse.match(/"response"\s*:\s*"([^"]+)"/);
         if (responseMatch && responseMatch[1]) {
           fallbackResponse = responseMatch[1].replace(/\\n/g, '\n');
         } else {
           // If no response field, just use the first paragraph that's not JSON-like
-          const paragraphs = response.split('\n').filter(p => 
+          const paragraphs = llmResponse.split('\n').filter((p: string) => 
             p.trim().length > 0 && 
             !p.includes('{') && 
             !p.includes('}') && 
