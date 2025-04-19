@@ -7,25 +7,10 @@ export class ToolExecutor {
   constructor(private registry: ServerRegistry) {}
 
   async execute(serverId: string, toolName: string, parameters: Record<string, any>): Promise<any> {
-    // Handle direct answers specially
-    if (serverId === "direct_answer" && toolName === "answer") {
-      // For direct answers, just return the query as the response
-      // This preserves the context-aware response from the router
-      return {
-        content: [{ type: "text", text: parameters.query }]
-      };
-    }
-    
     // Get the server configuration
     const serverConfig = this.registry.getServerById(serverId);
     if (!serverConfig) {
       throw new Error(`Server with ID ${serverId} not found`);
-    }
-
-    // Check if the tool exists on the server
-    const tool = serverConfig.tools.find(t => t.name === toolName);
-    if (!tool) {
-      throw new Error(`Tool ${toolName} not found on server ${serverId}`);
     }
 
     // Execute the tool based on the connection type

@@ -8,43 +8,61 @@ const server = new McpServer({
   version: "1.0.0"
 });
 
-// Add calculator tools
+// Add calculator tools with detailed descriptions
 server.tool("add",
-  { a: z.number(), b: z.number() },
+  { 
+    a: z.number().describe("First number to add"),
+    b: z.number().describe("Second number to add")
+  },
   async ({ a, b }) => ({
     content: [{ type: "text", text: String(a + b) }]
-  })
+  }),
+  "Add two numbers together. Use this tool for addition operations."
 );
 
 server.tool("subtract",
-  { a: z.number(), b: z.number() },
+  { 
+    a: z.number().describe("Number to subtract from"),
+    b: z.number().describe("Number to subtract")
+  },
   async ({ a, b }) => ({
     content: [{ type: "text", text: String(a - b) }]
-  })
+  }),
+  "Subtract the second number from the first. Use this tool for subtraction operations."
 );
 
 server.tool("multiply",
-  { a: z.number(), b: z.number() },
+  { 
+    a: z.number().describe("First number to multiply"),
+    b: z.number().describe("Second number to multiply")
+  },
   async ({ a, b }) => ({
     content: [{ type: "text", text: String(a * b) }]
-  })
+  }),
+  "Multiply two numbers together. Use this tool for multiplication operations."
 );
 
 server.tool("divide",
-  { a: z.number(), b: z.number() },
+  { 
+    a: z.number().describe("Number to divide (dividend)"),
+    b: z.number().describe("Number to divide by (divisor)")
+  },
   async ({ a, b }) => {
     if (b === 0) {
       return {
-        content: [{ type: "text", text: "Error: Division by zero" }],
+        content: [{ type: "text", text: "Error: Cannot divide by zero" }],
         isError: true
       };
     }
     return {
       content: [{ type: "text", text: String(a / b) }]
     };
-  }
+  },
+  "Divide the first number by the second. Use this tool for division operations. Returns an error if attempting to divide by zero."
 );
 
 // Start receiving messages on stdin and sending messages on stdout
 const transport = new StdioServerTransport();
 await server.connect(transport);
+
+console.error("Calculator MCP Server running on stdio");
