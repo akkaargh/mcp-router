@@ -296,8 +296,9 @@ Just respond as if you are directly asking the user for the information.
       console.error('Error processing query:', error);
       
       console.log('\n--- LLM Call for Error Response ---');
-      console.log(`Sending query to LLM for natural language response for error: ${error.message}`);
-      const errorResponse = await this.responseFormatter.formatError(error as Error, userInput);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.log(`Sending query to LLM for natural language response for error: ${errorMessage}`);
+      const errorResponse = await this.responseFormatter.formatError(error instanceof Error ? error : new Error(String(error)), userInput);
       console.log('LLM response:', errorResponse);
       console.log(`--- LLM Call for Error Response Complete ---\n`);
       
