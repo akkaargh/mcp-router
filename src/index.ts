@@ -120,19 +120,6 @@ export class MCPLLMRouter {
       console.log('\n--- Processing Query ---');
       console.log(`User input: "${userInput}"`);
       
-      // Check for special commands
-      if (userInput.toLowerCase() === 'list servers') {
-        return this.listServers();
-      } else if (userInput.toLowerCase() === 'server status') {
-        return this.getServerStatus();
-      } else if (userInput.toLowerCase().startsWith('activate server ')) {
-        const serverId = userInput.substring('activate server '.length).trim();
-        return this.activateServer(serverId);
-      } else if (userInput.toLowerCase().startsWith('deactivate server ')) {
-        const serverId = userInput.substring('deactivate server '.length).trim();
-        return this.deactivateServer(serverId);
-      }
-      
       // Add the user's message to memory
       this.addToMemory('user', userInput);
       
@@ -166,37 +153,96 @@ export class MCPLLMRouter {
       // Otherwise, proceed with normal tool routing
       console.log('Routing query to tools...');
       const routingInfo = await this.queryRouter.routeQuery(userInput);
-      console.log('Routing complete:', {
-        serverId: routingInfo.serverId,
-        toolName: routingInfo.toolName,
-        parameterCount: Object.keys(routingInfo.parameters).length
-      });
-    
-      // If we have a direct response from the query router, use it
-      if (routingInfo.directResponse) {
-        console.log('Using direct response from query router');
-        this.addToMemory('assistant', routingInfo.directResponse);
-        return routingInfo.directResponse;
+      console.log('Routing complete:', routingInfo);
+      
+      // Handle different actions based on the LLM's decision
+      switch (routingInfo.action) {
+        case 'respond_directly':
+          // Handle direct response
+          const directResponse = routingInfo.response || 'I understand your request.';
+          this.addToMemory('assistant', directResponse);
+          return directResponse;
+          
+        case 'call_tool':
+          // Execute the tool
+          if (!routingInfo.tool) {
+            throw new Error('Tool information missing for call_tool action');
+          }
+          
+          console.log(`Executing tool: ${routingInfo.tool.name} on server: ${routingInfo.tool.serverId}`);
+          const result = await this.toolExecutor.execute(
+            routingInfo.tool.serverId,
+            routingInfo.tool.name,
+            routingInfo.tool.parameters
+          );
+          
+          // Format the response
+          console.log('Formatting response...');
+          const formattedResponse = await this.responseFormatter.formatResponse(result, userInput);
+          this.addToMemory('assistant', formattedResponse);
+          return formattedResponse;
+          
+        case 'list_servers':
+          // List all servers
+          const serversResponse = this.listServers();
+          this.addToMemory('assistant', serversResponse);
+          return serversResponse;
+          
+        case 'server_status':
+          // Get server status
+          const statusResponse = this.getServerStatus();
+          this.addToMemory('assistant', statusResponse);
+          return statusResponse;
+          
+        case 'activate_server':
+          // Activate a server
+          if (!routingInfo.server?.id) {
+            throw new Error('Server ID missing for activate_server action');
+          }
+          
+          const activateResponse = this.activateServerCommand(routingInfo.server.id);
+          this.addToMemory('assistant', activateResponse);
+          return activateResponse;
+          
+        case 'deactivate_server':
+          // Deactivate a server
+          if (!routingInfo.server?.id) {
+            throw new Error('Server ID missing for deactivate_server action');
+          }
+          
+          const deactivateResponse = this.deactivateServerCommand(routingInfo.server.id);
+          this.addToMemory('assistant', deactivateResponse);
+          return deactivateResponse;
+          
+        case 'remove_server':
+          // Remove a server
+          if (!routingInfo.server?.id) {
+            throw new Error('Server ID missing for remove_server action');
+          }
+          
+          const deleteFiles = routingInfo.server.deleteFiles || false;
+          const removeResponse = this.removeServerCommand(routingInfo.server.id, deleteFiles);
+          this.addToMemory('assistant', removeResponse);
+          return removeResponse;
+          
+        case 'install_server':
+          // Install server dependencies
+          if (!routingInfo.server?.id) {
+            throw new Error('Server ID missing for install_server action');
+          }
+          
+          const installResponse = await this.installServerDependenciesCommand(routingInfo.server.id);
+          this.addToMemory('assistant', installResponse);
+          return installResponse;
+          
+        default:
+          // Unknown action
+          const errorMsg = `Unknown action: ${routingInfo.action}`;
+          console.error(errorMsg);
+          const errorResponse = `I'm not sure how to process that request. Please try again with a different query.`;
+          this.addToMemory('assistant', errorResponse);
+          return errorResponse;
       }
-    
-      // Execute the tool
-      console.log(`Executing tool: ${routingInfo.toolName} on server: ${routingInfo.serverId}`);
-      const result = await this.toolExecutor.execute(
-        routingInfo.serverId,
-        routingInfo.toolName,
-        routingInfo.parameters
-      );
-      console.log('Tool execution complete');
-      
-      // Format the response
-      console.log('Formatting response...');
-      const formattedResponse = await this.responseFormatter.formatResponse(result, userInput);
-      
-      // Add the assistant's response to memory
-      this.addToMemory('assistant', formattedResponse);
-      
-      console.log('--- Query Processing Complete ---\n');
-      return formattedResponse;
     } catch (error) {
       // Handle errors
       console.error('Error processing query:', error);
@@ -221,6 +267,11 @@ export class MCPLLMRouter {
       const status = server.disabled ? "🔴 Disabled" : "🟢 Active";
       response += `${server.name} (ID: ${server.id}) - ${status}\n`;
       response += `Description: ${server.description}\n`;
+      
+      if (server.path) {
+        response += `Path: ${server.path}\n`;
+      }
+      
       response += "Tools:\n";
       
       server.tools.forEach(tool => {
@@ -231,9 +282,13 @@ export class MCPLLMRouter {
     });
     
     response += "You can manage servers with these commands:\n";
-    response += "- 'activate server <id>' - Enable a disabled server\n";
-    response += "- 'deactivate server <id>' - Temporarily disable a server\n";
-    response += "- 'server status' - Check which servers are active\n";
+    response += "- Ask to 'list servers' - Show all available servers\n";
+    response += "- Ask for 'server status' - Check which servers are active\n";
+    response += "- Ask to 'activate server <id>' - Enable a disabled server\n";
+    response += "- Ask to 'deactivate server <id>' - Temporarily disable a server\n";
+    response += "- Ask to 'remove server <id>' - Remove a server from the registry\n";
+    response += "- Ask to 'remove server <id> and delete files' - Remove a server and delete its files\n";
+    response += "- Ask to 'install dependencies for server <id>' - Install dependencies for a server\n";
     
     return response;
   }
@@ -261,7 +316,7 @@ export class MCPLLMRouter {
     return response;
   }
   
-  private activateServer(serverId: string): string {
+  private activateServerCommand(serverId: string): string {
     const server = this.serverRegistry.getServerById(serverId);
     if (!server) {
       return `Server with ID "${serverId}" not found. Use 'list servers' to see available servers.`;
@@ -271,11 +326,11 @@ export class MCPLLMRouter {
       return `Server "${server.name}" is already active.`;
     }
     
-    server.disabled = false;
+    this.serverRegistry.activateServer(serverId);
     return `Server "${server.name}" has been activated and is now available for use.`;
   }
   
-  private deactivateServer(serverId: string): string {
+  private deactivateServerCommand(serverId: string): string {
     const server = this.serverRegistry.getServerById(serverId);
     if (!server) {
       return `Server with ID "${serverId}" not found. Use 'list servers' to see available servers.`;
@@ -285,8 +340,47 @@ export class MCPLLMRouter {
       return `Server "${server.name}" is already disabled.`;
     }
     
-    server.disabled = true;
+    this.serverRegistry.deactivateServer(serverId);
     return `Server "${server.name}" has been deactivated and will not be used for query routing.`;
+  }
+  
+  private removeServerCommand(serverId: string, deleteFiles: boolean): string {
+    const server = this.serverRegistry.getServerById(serverId);
+    if (!server) {
+      return `Server with ID "${serverId}" not found. Use 'list servers' to see available servers.`;
+    }
+    
+    const serverName = server.name;
+    const result = this.serverRegistry.removeServer(serverId, deleteFiles);
+    
+    if (result) {
+      if (deleteFiles) {
+        return `Server "${serverName}" has been removed from the registry and its files have been deleted.`;
+      } else {
+        return `Server "${serverName}" has been removed from the registry. The server files are still on disk.`;
+      }
+    } else {
+      return `Failed to remove server "${serverName}". Please try again.`;
+    }
+  }
+  
+  private async installServerDependenciesCommand(serverId: string): Promise<string> {
+    const server = this.serverRegistry.getServerById(serverId);
+    if (!server) {
+      return `Server with ID "${serverId}" not found. Use 'list servers' to see available servers.`;
+    }
+    
+    try {
+      const result = await this.serverRegistry.installServerDependencies(serverId);
+      if (result) {
+        return `Dependencies for server "${server.name}" have been successfully installed.`;
+      } else {
+        return `Failed to install dependencies for server "${server.name}". Please check the server path and try again.`;
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return `Error installing dependencies for server "${server.name}": ${errorMessage}`;
+    }
   }
 }
 

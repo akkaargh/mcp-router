@@ -4,7 +4,15 @@ import { ConversationMemory } from '../memory/conversationMemory';
 
 // Define the structured response format
 interface ToolDecisionResponse {
-  action: 'respond_directly' | 'call_tool';
+  action: 
+    'respond_directly' | 
+    'call_tool' | 
+    'list_servers' | 
+    'server_status' | 
+    'activate_server' | 
+    'deactivate_server' | 
+    'remove_server' |
+    'install_server';
   response: string;
   reasoning: string;
   tool?: {
@@ -12,6 +20,10 @@ interface ToolDecisionResponse {
     name: string;
     parameters: Record<string, any>;
     missing_parameters: string[];
+  };
+  server?: {
+    id: string;
+    deleteFiles?: boolean;
   };
 }
 
@@ -89,31 +101,42 @@ export class QueryRouter {
         throw new Error('Missing required fields in LLM response');
       }
       
-      // If action is call_tool, validate tool information
-      if (parsedResponse.action === 'call_tool') {
-        if (!parsedResponse.tool || !parsedResponse.tool.serverId || !parsedResponse.tool.name) {
-          throw new Error('Missing tool information in LLM response');
-        }
-        
-        // Ensure the server and tool exist
-        const server = this.registry.getServerById(parsedResponse.tool.serverId);
-        if (!server) {
-          throw new Error(`Server with ID ${parsedResponse.tool.serverId} not found`);
-        }
-        
-        const tool = server.tools.find(t => t.name === parsedResponse.tool.name);
-        if (!tool) {
-          throw new Error(`Tool ${parsedResponse.tool.name} not found on server ${parsedResponse.tool.serverId}`);
-        }
-        
-        // Ensure parameters and missing_parameters are present
-        if (!parsedResponse.tool.parameters) {
-          parsedResponse.tool.parameters = {};
-        }
-        
-        if (!parsedResponse.tool.missing_parameters) {
-          parsedResponse.tool.missing_parameters = [];
-        }
+      // Validate action-specific fields
+      switch (parsedResponse.action) {
+        case 'call_tool':
+          if (!parsedResponse.tool || !parsedResponse.tool.serverId || !parsedResponse.tool.name) {
+            throw new Error('Missing tool information in LLM response');
+          }
+          
+          // Ensure the server and tool exist
+          const server = this.registry.getServerById(parsedResponse.tool.serverId);
+          if (!server) {
+            throw new Error(`Server with ID ${parsedResponse.tool.serverId} not found`);
+          }
+          
+          const tool = server.tools.find(t => t.name === parsedResponse.tool.name);
+          if (!tool) {
+            throw new Error(`Tool ${parsedResponse.tool.name} not found on server ${parsedResponse.tool.serverId}`);
+          }
+          
+          // Ensure parameters and missing_parameters are present
+          if (!parsedResponse.tool.parameters) {
+            parsedResponse.tool.parameters = {};
+          }
+          
+          if (!parsedResponse.tool.missing_parameters) {
+            parsedResponse.tool.missing_parameters = [];
+          }
+          break;
+          
+        case 'activate_server':
+        case 'deactivate_server':
+        case 'remove_server':
+        case 'install_server':
+          if (!parsedResponse.server || !parsedResponse.server.id) {
+            throw new Error(`Missing server ID for ${parsedResponse.action} action`);
+          }
+          break;
       }
       
       return parsedResponse as ToolDecisionResponse;
@@ -137,12 +160,7 @@ export class QueryRouter {
   /**
    * Route the user query to the appropriate tool or direct response
    */
-  async routeQuery(userInput: string): Promise<{
-    serverId: string;
-    toolName: string;
-    parameters: Record<string, any>;
-    directResponse?: string;
-  }> {
+  async routeQuery(userInput: string): Promise<ToolDecisionResponse> {
     // Get formatted tool descriptions and conversation history
     const toolsDescription = this.getToolsDescription();
     const historyText = this.getConversationHistoryText();
@@ -152,7 +170,7 @@ export class QueryRouter {
     
     // Construct the prompt for the LLM
     const prompt = `
-You are an intelligent assistant designed to determine whether a user's query requires invoking a tool or can be answered directly based on the conversation history. Analyze the following information and decide the appropriate action.
+You are an intelligent assistant designed to determine the appropriate action based on a user's query. Analyze the following information and decide what action to take.
 
 ${historyText}
 User input: "${userInput}"
@@ -160,24 +178,26 @@ User input: "${userInput}"
 Available Tools:
 ${toolsDescription}
 
-Based on the above, decide whether to:
-1. Respond directly using the conversation history or general knowledge.
-2. Invoke an appropriate tool to fulfill the user's request.
+Based on the above, decide on the appropriate action to take. You can:
 
-IMPORTANT: You should respond directly with a complete, informative answer for:
-1. Questions about available tools or system capabilities
-2. General knowledge questions (e.g., "What is the capital of France?")
-3. Requests for information or explanations that don't require external data
-4. Questions about the conversation history
-5. Requests for opinions, advice, or creative content that you can generate
-6. ANY query that doesn't specifically require a tool to answer
+1. RESPOND DIRECTLY: Answer the user's question using your knowledge or the conversation history.
+   - Use this for general knowledge questions, explanations, or when no specific tool is needed.
 
-Only suggest using a tool when the user's request CANNOT be fulfilled with your existing knowledge or when a specific computation or external data access is required. Your goal is to provide helpful, accurate responses directly whenever possible.
+2. CALL A TOOL: Use one of the available tools to fulfill the user's request.
+   - Use this when the user's request requires computation or external data.
+
+3. MANAGE SERVERS: Perform server management operations.
+   - LIST SERVERS: Show all available servers
+   - SERVER STATUS: Check which servers are active/disabled
+   - ACTIVATE SERVER: Enable a disabled server
+   - DEACTIVATE SERVER: Temporarily disable a server
+   - REMOVE SERVER: Remove a server from the registry (optionally delete files)
+   - INSTALL SERVER: Install dependencies for a server
 
 Respond in the following JSON format:
 
 {
-  "action": "respond_directly" | "call_tool",
+  "action": "respond_directly" | "call_tool" | "list_servers" | "server_status" | "activate_server" | "deactivate_server" | "remove_server" | "install_server",
   "response": "Your message to the user explaining the action taken.",
   "reasoning": "Explanation of why this action is appropriate.",
   "tool": {
@@ -188,13 +208,17 @@ Respond in the following JSON format:
       "param2": "value2"
     },
     "missing_parameters": ["param3"]
+  },
+  "server": {
+    "id": "server_id",
+    "deleteFiles": true | false
   }
 }
 
 Notes:
-- If action is "respond_directly", the "tool" field can be omitted.
-- If action is "call_tool" and all required parameters are provided, proceed with the tool invocation.
-- If action is "call_tool" but some parameters are missing, list them in "missing_parameters" and include a response that prompts the user for the necessary information.
+- The "tool" field is only required for "call_tool" action.
+- The "server" field is only required for "activate_server", "deactivate_server", "remove_server", and "install_server" actions.
+- For "remove_server" action, include "deleteFiles" to indicate whether to delete the server files.
 - For numeric parameters, use actual numbers (e.g., 5), not strings (e.g., "5").
 - Convert word-form numbers (like "five") to numeric values (like 5).
 - Use the conversation history to understand the context of the current request.
@@ -224,16 +248,31 @@ For tool invocation with all parameters:
   }
 }
 
-For tool invocation with missing parameters:
+For listing servers:
 {
-  "action": "call_tool",
-  "response": "I need more information. Which specific numbers would you like to add?",
-  "reasoning": "The user wants to perform addition but hasn't specified the numbers.",
-  "tool": {
-    "serverId": "calculator",
-    "name": "add",
-    "parameters": {},
-    "missing_parameters": ["a", "b"]
+  "action": "list_servers",
+  "response": "Here are all the available servers.",
+  "reasoning": "The user asked to see a list of all servers."
+}
+
+For activating a server:
+{
+  "action": "activate_server",
+  "response": "I'll activate the calculator server for you.",
+  "reasoning": "The user wants to enable the calculator server.",
+  "server": {
+    "id": "calculator"
+  }
+}
+
+For removing a server with file deletion:
+{
+  "action": "remove_server",
+  "response": "I'll remove the weather server and delete its files.",
+  "reasoning": "The user wants to completely remove the weather server.",
+  "server": {
+    "id": "weather",
+    "deleteFiles": true
   }
 }
 `;
@@ -250,56 +289,17 @@ For tool invocation with missing parameters:
       // Parse the response
       const decision = this.parseToolDecisionResponse(jsonString);
       
-      // Handle direct responses
-      if (decision.action === 'respond_directly') {
-        console.log('LLM decided to respond directly');
-        return {
-          serverId: "direct_answer",
-          toolName: "answer",
-          parameters: { 
-            query: "" // Empty query since we'll use directResponse
-          },
-          directResponse: decision.response // Include the complete response
-        };
-      }
-      
-      // Handle tool invocations
-      if (decision.action === 'call_tool' && decision.tool) {
-        console.log('LLM decided to use a tool:', decision.tool.name);
-        
-        // Check if there are missing parameters
-        if (decision.tool.missing_parameters && decision.tool.missing_parameters.length > 0) {
-          console.log('Tool has missing parameters:', decision.tool.missing_parameters);
-          return {
-            serverId: "direct_answer",
-            toolName: "answer",
-            parameters: { 
-              query: decision.response || `I need more information to ${decision.tool.name}. Please provide: ${decision.tool.missing_parameters.join(', ')}.`
-            }
-          };
-        }
-        
-        // All parameters are present, proceed with tool invocation
-        return {
-          serverId: decision.tool.serverId,
-          toolName: decision.tool.name,
-          parameters: decision.tool.parameters
-        };
-      }
-      
-      // This should not happen if the LLM follows the format
-      throw new Error('Invalid decision format from LLM');
+      // Return the decision directly
+      return decision;
       
     } catch (error) {
       console.error('Error in routing query:', error);
       
       // Fallback to direct answer
       return {
-        serverId: "direct_answer",
-        toolName: "answer",
-        parameters: { 
-          query: `I'm having trouble understanding how to process your request: "${userInput}". Could you please rephrase or provide more details?`
-        }
+        action: 'respond_directly',
+        response: `I'm having trouble understanding how to process your request: "${userInput}". Could you please rephrase or provide more details?`,
+        reasoning: 'Error parsing LLM response'
       };
     }
   }

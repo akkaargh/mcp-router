@@ -9,10 +9,11 @@ export const calculatorServer: MCPServerConfig = {
   id: 'calculator',
   name: 'Calculator',
   description: 'A server that provides mathematical operations',
+  path: './servers/calculator/calculator-server.js',
   connection: {
     type: 'stdio',
     command: 'node',
-    args: ['./mcp-servers/calculator-server.js']
+    args: []
   },
   tools: [
     {

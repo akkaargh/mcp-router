@@ -53,10 +53,19 @@ export class ToolExecutor {
     toolName: string, 
     parameters: Record<string, any>
   ): Promise<any> {
+    // Get the command and args
+    const command = serverConfig.connection.command || 'node';
+    
+    // If the server has a path, use it as the first argument
+    const args = [...(serverConfig.connection.args || [])];
+    if (serverConfig.path) {
+      args.unshift(serverConfig.path);
+    }
+    
     // Create an MCP client for stdio
     const transport = new StdioClientTransport({
-      command: serverConfig.connection.command || '',
-      args: serverConfig.connection.args || []
+      command: command,
+      args: args
     });
     
     const client = new Client({

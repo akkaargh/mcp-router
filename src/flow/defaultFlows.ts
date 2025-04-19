@@ -296,17 +296,36 @@ Return ONLY the corrected code, without any explanation or markdown formatting.
         
         // Save the file using the filesystem MCP server
         try {
-          const filePath = `mcp-servers/${serverDetails.filename}`;
+          // Create a server directory
+          const serverName = serverDetails.serverName || 'custom-server';
+          const serverDir = `servers/${serverName.toLowerCase().replace(/\s+/g, '-')}`;
           
           // Create the directory if it doesn't exist
           await toolExecutor.execute('filesystem', 'create_directory', {
-            path: 'mcp-servers'
+            path: serverDir
           });
           
-          // Write the file
+          // Write the server file
+          const serverFilename = serverDetails.filename || `${serverName.toLowerCase().replace(/\s+/g, '-')}.js`;
           await toolExecutor.execute('filesystem', 'write_file', {
-            path: filePath,
+            path: `${serverDir}/${serverFilename}`,
             content: serverDetails.code
+          });
+          
+          // Create package.json
+          await toolExecutor.execute('filesystem', 'write_file', {
+            path: `${serverDir}/package.json`,
+            content: JSON.stringify({
+              "name": serverName.toLowerCase().replace(/\s+/g, '-'),
+              "version": "1.0.0",
+              "description": serverDetails.serverDescription || `MCP server for ${serverName}`,
+              "type": "module",
+              "main": serverFilename,
+              "dependencies": {
+                "@modelcontextprotocol/sdk": "^1.9.0",
+                "zod": "^3.24.2"
+              }
+            }, null, 2)
           });
           
           // Generate server configuration for registration
@@ -354,19 +373,21 @@ Return a JSON array of tool names only, like: ["toolName1", "toolName2"]
           }
           
           // Save server configuration for registration
+          const serverId = serverName.toLowerCase().replace(/\s+/g, '_');
           serverDetails.serverConfig = {
-            id: serverName.toLowerCase().replace(/\s+/g, '_'),
+            id: serverId,
             name: serverName,
-            description: `MCP server for ${serverName}`,
+            description: serverDetails.serverDescription || `MCP server for ${serverName}`,
+            path: `./${serverDir}/${serverFilename}`,
             connection: {
               type: 'stdio',
               command: 'node',
-              args: [`./mcp-servers/${serverDetails.filename}`]
+              args: []
             },
             tools: tools
           };
           
-          response = `Great! I've saved your MCP server to ${filePath}.
+          response = `Great! I've saved your MCP server to ${serverDir}/${serverFilename}.
 
 The server includes the following tools:
 ${tools.map(t => `- ${t.name}`).join('\n')}
@@ -421,14 +442,15 @@ or
               
               response = `Success! I've registered the ${serverDetails.serverConfig.name} server with the system.
 
-You can now use it by asking questions that require its tools. For example:
-"What's the weather in New York?"
+Would you like me to install the dependencies for this server now? This will run 'npm install' in the server directory.
 
-You can also manage your servers with these commands:
-- "list servers" - Show all available servers
-- "server status" - Check which servers are active
-- "deactivate server ${serverDetails.serverConfig.id}" - Temporarily disable this server
-- "activate server ${serverDetails.serverConfig.id}" - Re-enable the server if it's disabled
+You can also manage your server with these commands:
+- Ask to "list servers" - Show all available servers
+- Ask for "server status" - Check which servers are active
+- Ask to "activate server ${serverId}" - Enable the server if it's disabled
+- Ask to "deactivate server ${serverId}" - Temporarily disable the server
+- Ask to "remove server ${serverId}" - Remove the server from the registry
+- Ask to "install dependencies for server ${serverId}" - Install dependencies for the server
 
 Is there anything else you'd like to know about your new server?`;
             } catch (error) {
