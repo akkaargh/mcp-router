@@ -77,6 +77,21 @@ export class ToolExecutor {
       // Connect to the server
       await client.connect(transport);
       
+      // Log tool descriptions when first connecting to a server
+      try {
+        const tools = await client.listTools();
+        console.log(`\n--- MCP Server Tool Descriptions for ${serverConfig.name} ---`);
+        tools.forEach(tool => {
+          console.log(`Tool: ${tool.name}`);
+          console.log(`Description: ${tool.description}`);
+          console.log('Parameters:', JSON.stringify(tool.inputSchema?.properties || {}, null, 2));
+          console.log('---');
+        });
+        console.log(`--- End Tool Descriptions ---\n`);
+      } catch (error) {
+        console.error('Error fetching tool descriptions:', error);
+      }
+      
       // Call the tool
       const result = await client.callTool({
         name: toolName,

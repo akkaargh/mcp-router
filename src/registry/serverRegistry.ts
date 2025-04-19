@@ -67,7 +67,7 @@ export class ServerRegistry {
     }
   }
 
-  addServer(config: MCPServerConfig) {
+  async addServer(config: MCPServerConfig) {
     // Check if server with this ID already exists
     const existingIndex = this.servers.findIndex(s => s.id === config.id);
     if (existingIndex >= 0) {
@@ -77,7 +77,22 @@ export class ServerRegistry {
       // Add new server
       this.servers.push(config);
     }
+    
+    // Save the server configuration
     this.saveServers();
+    
+    // If we have a tool executor, try to fetch tool descriptions from the server
+    if (this.toolExecutor && config.connection.type === 'stdio') {
+      try {
+        console.log(`Connecting to ${config.name} server to fetch tool descriptions...`);
+        // We'll just execute a dummy tool call to trigger the tool description logging
+        // The actual tool execution will fail, but the descriptions will be logged
+        await this.toolExecutor.execute(config.id, 'list_tools', {});
+      } catch (error) {
+        // This is expected to fail since we're not calling a real tool
+        console.log(`Fetched tool descriptions for ${config.name} server`);
+      }
+    }
   }
   
   setToolExecutor(executor: any) {

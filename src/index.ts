@@ -72,11 +72,11 @@ export class MCPLLMRouter {
   /**
    * Register default servers (calculator, direct_answer, filesystem)
    */
-  registerDefaultServers(): void {
+  async registerDefaultServers(): Promise<void> {
     const defaultServers = getDefaultServers();
-    defaultServers.forEach(server => {
-      this.serverRegistry.addServer(server);
-    });
+    for (const server of defaultServers) {
+      await this.serverRegistry.addServer(server);
+    }
   }
   
   /**

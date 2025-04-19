@@ -16,7 +16,7 @@ async function main() {
   const router = new MCPLLMRouter('anthropic', 'buffer', { maxMessages: 10 });
   
   // Register default servers and flows
-  router.registerDefaultServers();
+  await router.registerDefaultServers();
   router.registerDefaultFlows();
 
   console.log('Registered servers:', router.getServerRegistry().getServers().map(s => s.name).join(', '));
