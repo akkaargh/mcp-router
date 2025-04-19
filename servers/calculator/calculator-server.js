@@ -20,9 +20,6 @@ server.tool("add",
   "Add two numbers together. Use this tool for addition operations."
 );
 
-// Add description to the tool definition
-server.tools.find(t => t.name === "add").description = "Add two numbers together. Use this tool for addition operations.";
-
 server.tool("subtract",
   { 
     a: z.number().describe("Number to subtract from"),
@@ -34,9 +31,6 @@ server.tool("subtract",
   "Subtract the second number from the first. Use this tool for subtraction operations."
 );
 
-// Add description to the tool definition
-server.tools.find(t => t.name === "subtract").description = "Subtract the second number from the first. Use this tool for subtraction operations.";
-
 server.tool("multiply",
   { 
     a: z.number().describe("First number to multiply"),
@@ -47,9 +41,6 @@ server.tool("multiply",
   }),
   "Multiply two numbers together. Use this tool for multiplication operations."
 );
-
-// Add description to the tool definition
-server.tools.find(t => t.name === "multiply").description = "Multiply two numbers together. Use this tool for multiplication operations.";
 
 server.tool("divide",
   { 
@@ -69,9 +60,6 @@ server.tool("divide",
   },
   "Divide the first number by the second. Use this tool for division operations. Returns an error if attempting to divide by zero."
 );
-
-// Add description to the tool definition
-server.tools.find(t => t.name === "divide").description = "Divide the first number by the second. Use this tool for division operations. Returns an error if attempting to divide by zero.";
 
 // Start receiving messages on stdin and sending messages on stdout
 const transport = new StdioServerTransport();
