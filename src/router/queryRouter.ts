@@ -189,13 +189,16 @@ Based on the above, decide on the appropriate action to take. You can:
 2. CALL A TOOL: Use one of the available tools to fulfill the user's request.
    - Use this when the user's request requires computation or external data.
 
-3. MANAGE SERVERS: Perform server management operations.
-   - LIST SERVERS: Show all available servers
-   - SERVER STATUS: Check which servers are active/disabled
-   - ACTIVATE SERVER: Enable a disabled server
-   - DEACTIVATE SERVER: Temporarily disable a server
-   - REMOVE SERVER: Remove a server from the registry (optionally delete files)
-   - INSTALL SERVER: Install dependencies for a server
+3. MANAGE MCP SERVERS: Perform operations on the MCP servers registered with this application.
+   - IMPORTANT: Only use these actions when the user is clearly referring to MCP servers registered with this application, not general server types or concepts.
+   - If the user asks to "list servers", "show MCP servers", "what MCP servers are available", use action: "list_servers"
+   - If the user asks about "server status", "which MCP servers are active", use action: "server_status"
+   - If the user asks to "activate server X", "enable MCP server X", use action: "activate_server"
+   - If the user asks to "deactivate server X", "disable MCP server X", use action: "deactivate_server"
+   - If the user asks to "remove server X", "delete MCP server X", use action: "remove_server"
+   - If the user asks to "install dependencies for server X", use action: "install_server"
+   
+   If the user is asking about servers in general (like web servers, application servers, etc.) and NOT about the MCP servers registered with this application, use "direct_response" instead.
 
 Respond in the following JSON format:
 
@@ -251,11 +254,18 @@ For tool invocation with all parameters:
   }
 }
 
-For listing servers:
+For listing MCP servers:
 {
   "action": "list_servers",
-  "response": "Here are all the available servers.",
-  "reasoning": "The user asked to see a list of all servers."
+  "response": "Here are all the available MCP servers registered with this application.",
+  "reasoning": "The user is specifically asking about the MCP servers registered with this application, not about servers in general."
+}
+
+For a general question about server types:
+{
+  "action": "direct_response",
+  "response": "There are many types of servers including web servers (like Apache, Nginx), application servers (like Tomcat, JBoss), database servers (like MySQL, PostgreSQL), etc.",
+  "reasoning": "The user is asking about servers in general, not specifically about the MCP servers registered with this application."
 }
 
 For activating a server:
