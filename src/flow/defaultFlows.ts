@@ -306,7 +306,7 @@ Return ONLY the corrected code, without any explanation or markdown formatting.
           });
           
           // Write the server file
-          const serverFilename = serverDetails.filename || `${serverName.toLowerCase().replace(/\s+/g, '-')}.js`;
+          const serverFilename = serverDetails.filename || `${serverDirName.toLowerCase().replace(/\s+/g, '-')}.js`;
           await toolExecutor.execute('filesystem', 'write_file', {
             path: `${serverDir}/${serverFilename}`,
             content: serverDetails.code
