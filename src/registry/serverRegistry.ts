@@ -40,7 +40,8 @@ export class ServerRegistry {
       if (fs.existsSync(this.configPath)) {
         const configData = fs.readFileSync(this.configPath, 'utf8');
         const config = JSON.parse(configData);
-        this.servers = config.servers || [];
+        // Filter out any direct_answer server that might be in the config
+        this.servers = (config.servers || []).filter((server: MCPServerConfig) => server.id !== 'direct_answer');
       } else {
         console.warn(`Server configuration file not found at ${this.configPath}`);
         this.servers = [];

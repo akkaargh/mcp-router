@@ -70,7 +70,7 @@ export class MCPLLMRouter {
   }
   
   /**
-   * Register default servers (calculator, direct_answer, filesystem)
+   * Register default servers (calculator, filesystem)
    */
   async registerDefaultServers(): Promise<void> {
     const defaultServers = getDefaultServers();

@@ -19,7 +19,7 @@ async function main() {
   await router.registerDefaultServers();
   router.registerDefaultFlows();
 
-  console.log('Registered servers:', router.getServerRegistry().getServers().map(s => s.name).join(', '));
+  console.log('Registered servers:', router.getServerRegistry().getServers().filter(s => s.id !== 'direct_answer').map(s => s.name).join(', '));
   console.log('Registered flows:', router.getFlowRegistry().getFlows().map(f => f.name).join(', '));
   console.log('---------------------------------------------');
 
