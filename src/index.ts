@@ -177,7 +177,21 @@ export class MCPLLMRouter {
           
           if (routingInfo.tool.missing_parameters.length > 0) {
             console.log(`Missing parameters: ${routingInfo.tool.missing_parameters.join(', ')}`);
-            const missingParamsResponse = `I need more information to complete this request. Please provide values for: ${routingInfo.tool.missing_parameters.join(', ')}`;
+            
+            // Use LLM to create a natural language request for the missing parameters
+            console.log('\n--- Formatting Missing Parameters Request with LLM ---');
+            const missingParamsPrompt = `
+The user asked: "${userInput}"
+
+I need to use the ${routingInfo.tool.name} tool from the ${routingInfo.tool.serverId} server, but I'm missing these parameters: ${routingInfo.tool.missing_parameters.join(', ')}.
+
+Please create a natural, conversational response asking the user to provide these missing values. 
+For example, instead of saying "Please provide values for: a, b", say something like "Could you tell me the two numbers you'd like to add?"
+`;
+            const missingParamsResponse = await this.responseFormatter.generateResponse(missingParamsPrompt);
+            console.log('Missing parameters request formatted');
+            console.log(`--- Missing Parameters Formatting Complete ---\n`);
+            
             this.addToMemory('assistant', missingParamsResponse);
             return missingParamsResponse;
           }

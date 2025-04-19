@@ -59,4 +59,11 @@ If the user's query refers to previous parts of the conversation, make sure to a
 
     return await this.llmProvider.generateResponse(prompt);
   }
+  
+  /**
+   * Generate a response based on a prompt without additional formatting
+   */
+  async generateResponse(prompt: string): Promise<string> {
+    return await this.llmProvider.generateResponse(prompt);
+  }
 }
