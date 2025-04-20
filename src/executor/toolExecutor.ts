@@ -69,14 +69,27 @@ export class ToolExecutor {
         if (tools && Array.isArray(tools.tools)) {
           tools.tools.forEach((tool: any) => {
             console.log(`Tool: ${tool.name}`);
+            
             // Handle case where description might be undefined
+            // First try the tool's description from the server
+            // Then try the tool's description from the server config
+            // Finally fall back to a generic description
             const description = tool.description || 
                                (serverConfig.tools.find(t => t.name === tool.name)?.description) || 
-                               `Tool for ${tool.name}`;
+                               `Tool for ${tool.name.replace(/_/g, ' ')}`;
+                               
             console.log(`Description: ${description}`);
-            console.log('Parameters:', JSON.stringify(tool.inputSchema?.properties || {}, null, 2));
+            
+            // Log parameter information if available
+            if (tool.inputSchema?.properties) {
+              console.log('Parameters:', JSON.stringify(tool.inputSchema.properties, null, 2));
+            } else {
+              console.log('Parameters: No parameter information available');
+            }
             console.log('---');
           });
+        } else {
+          console.log(`No tools found for ${serverConfig.name} server`);
         }
         console.log(`--- End Tool Descriptions ---\n`);
       } catch (error) {
