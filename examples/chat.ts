@@ -23,7 +23,7 @@ async function main() {
   const servers = router.getServerRegistry().getServers().filter(s => s.id !== 'direct_answer');
   const flows = router.getFlowRegistry().getFlows();
   
-  console.log(`Registered ${servers.length} servers and ${flows.length} flows`);
+  console.log(`Ready with ${servers.length} servers and ${flows.length} flows`);
   console.log('---------------------------------------------');
 
   // Create readline interface

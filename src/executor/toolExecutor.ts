@@ -62,38 +62,12 @@ export class ToolExecutor {
       // Connect to the server
       await client.connect(transport);
       
-      // Log tool descriptions when first connecting to a server
+      // Fetch tool descriptions silently without logging
       try {
-        const tools = await client.listTools();
-        console.log(`\n--- MCP Server Tool Descriptions for ${serverConfig.name} ---`);
-        if (tools && Array.isArray(tools.tools)) {
-          tools.tools.forEach((tool: any) => {
-            console.log(`Tool: ${tool.name}`);
-            
-            // Handle case where description might be undefined
-            // First try the tool's description from the server
-            // Then try the tool's description from the server config
-            // Finally fall back to a generic description
-            const description = tool.description || 
-                               (serverConfig.tools.find(t => t.name === tool.name)?.description) || 
-                               `Tool for ${tool.name.replace(/_/g, ' ')}`;
-                               
-            console.log(`Description: ${description}`);
-            
-            // Log parameter information if available
-            if (tool.inputSchema?.properties) {
-              console.log('Parameters:', JSON.stringify(tool.inputSchema.properties, null, 2));
-            } else {
-              console.log('Parameters: No parameter information available');
-            }
-            console.log('---');
-          });
-        } else {
-          console.log(`No tools found for ${serverConfig.name} server`);
-        }
-        console.log(`--- End Tool Descriptions ---\n`);
+        await client.listTools();
+        // No logging here to keep console output clean
       } catch (error) {
-        console.error('Error fetching tool descriptions:', error);
+        // Silently handle errors
       }
       
       // Call the tool

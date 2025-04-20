@@ -85,13 +85,11 @@ export class ServerRegistry {
     // If we have a tool executor, try to fetch tool descriptions from the server
     if (this.toolExecutor && config.connection.type === 'stdio') {
       try {
-        console.log(`Connecting to ${config.name} server to fetch tool descriptions...`);
-        // We'll just execute a dummy tool call to trigger the tool description logging
-        // The actual tool execution will fail, but the descriptions will be logged
+        // Connect to server silently without logging
         await this.toolExecutor.execute(config.id, 'list_tools', {});
       } catch (error) {
         // This is expected to fail since we're not calling a real tool
-        console.log(`Fetched tool descriptions for ${config.name} server`);
+        // No logging to keep console output clean
       }
     }
   }
