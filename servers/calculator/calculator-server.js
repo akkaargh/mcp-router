@@ -233,11 +233,11 @@ server.tool(
   }
 );
 
-// Set up a handler for list_tools request using the server's API
-// This is a workaround since ListToolsRequestSchema is not available
-server.setRequestHandler("list_tools", async () => ({
-  tools: [ADD_TOOL, SUBTRACT_TOOL, MULTIPLY_TOOL, DIVIDE_TOOL],
-}));
+// Register the tools with the server's metadata
+// This allows the tools to be discovered by the client
+server.metadata = {
+  tools: [ADD_TOOL, SUBTRACT_TOOL, MULTIPLY_TOOL, DIVIDE_TOOL]
+};
 
 // Log server startup
 console.error("Starting Calculator MCP Server...");
