@@ -1,7 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { ListToolsRequestSchema } from "@modelcontextprotocol/sdk/shared/protocol.js";
 
 /**
  * Calculator MCP Server
@@ -234,8 +233,9 @@ server.tool(
   }
 );
 
-// Set up the list_tools request handler
-server.setRequestHandler(ListToolsRequestSchema, async () => ({
+// Set up a handler for list_tools request using the server's API
+// This is a workaround since ListToolsRequestSchema is not available
+server.setRequestHandler("list_tools", async () => ({
   tools: [ADD_TOOL, SUBTRACT_TOOL, MULTIPLY_TOOL, DIVIDE_TOOL],
 }));
 
