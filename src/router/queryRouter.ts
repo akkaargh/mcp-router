@@ -323,7 +323,8 @@ For removing a server with file deletion:
       // Get the LLM's decision
       console.log('Sending query to LLM for routing decision...');
       llmResponse = await this.llmProvider.generateResponse(prompt);
-      console.log('LLM routing response:', llmResponse);
+      // Avoid logging the full LLM response which can be very verbose
+      console.log('Received routing response from LLM');
       
       // Extract JSON from the response if needed
       const jsonString = this.extractJsonFromResponse(llmResponse) || llmResponse;
@@ -331,7 +332,7 @@ For removing a server with file deletion:
       // Parse the response
       const decision = this.parseToolDecisionResponse(jsonString);
       
-      // Return the decision directly without additional logging
+      // Return the decision without verbose logging
       return decision;
       
     } catch (error) {

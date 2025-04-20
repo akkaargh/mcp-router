@@ -19,8 +19,11 @@ async function main() {
   await router.registerDefaultServers();
   router.registerDefaultFlows();
 
-  console.log('Registered servers:', router.getServerRegistry().getServers().filter(s => s.id !== 'direct_answer').map(s => s.name).join(', '));
-  console.log('Registered flows:', router.getFlowRegistry().getFlows().map(f => f.name).join(', '));
+  // Simplified server and flow registration output
+  const servers = router.getServerRegistry().getServers().filter(s => s.id !== 'direct_answer');
+  const flows = router.getFlowRegistry().getFlows();
+  
+  console.log(`Registered ${servers.length} servers and ${flows.length} flows`);
   console.log('---------------------------------------------');
 
   // Create readline interface
@@ -65,7 +68,7 @@ async function main() {
       }
 
       try {
-        console.log('Processing...');
+        console.log(chalk.gray('Processing...'));
         const response = await router.processQuery(userInput);
         // Add a separator line before the response for better visibility
         console.log('\n' + chalk.bold.white('─'.repeat(50)));

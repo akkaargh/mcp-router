@@ -117,14 +117,13 @@ export class MCPLLMRouter {
 
   async processQuery(userInput: string): Promise<string> {
     try {
+      // Simplified processing start log
       console.log('\n--- Processing Query ---');
-      console.log(`User input: "${userInput}"`);
       
       // Add the user's message to memory
       this.addToMemory('user', userInput);
       
       // First, check if this query should be handled by a flow
-      console.log('Checking if query should be handled by a flow...');
       const flowRouting = await this.flowRouter.routeQuery(userInput);
       
       if (flowRouting.shouldUseFlow && flowRouting.flowId) {
@@ -168,7 +167,6 @@ export class MCPLLMRouter {
       }
       
       // Otherwise, proceed with normal tool routing
-      console.log('Routing query to tools...');
       const routingInfo = await this.queryRouter.routeQuery(userInput);
       
       // Handle different actions based on the LLM's decision
@@ -176,7 +174,7 @@ export class MCPLLMRouter {
         case 'respond_directly':
         case 'direct_response':
           // Handle direct response
-          console.log('LLM decided to respond directly');
+          // Direct response - no need for verbose logging
           const directResponse = routingInfo.response || 'I understand your request.';
           this.addToMemory('assistant', directResponse);
           return directResponse;
@@ -187,16 +185,10 @@ export class MCPLLMRouter {
             throw new Error('Tool information missing for call_tool action');
           }
           
-          console.log(`\n--- MCP Server Tool Call ---`);
-          console.log(`Tool: ${routingInfo.tool.name}`);
-          console.log(`Server: ${routingInfo.tool.serverId}`);
-          console.log(`Parameters:`, routingInfo.tool.parameters);
+          console.log(`\n--- MCP Server Tool Call: ${routingInfo.tool.serverId}.${routingInfo.tool.name} ---`);
           
           if (routingInfo.tool.missing_parameters.length > 0) {
-            console.log(`Missing parameters: ${routingInfo.tool.missing_parameters.join(', ')}`);
-            
             // Use LLM to create a natural language request for the missing parameters
-            console.log('\n--- LLM Call for Missing Parameters Request ---');
             const missingParamsPrompt = `
 The user asked: "${userInput}"
 
@@ -208,10 +200,8 @@ For example, instead of saying "Please provide values for: a, b", say something 
 DO NOT start your response with phrases like "Here's a natural way to ask..." or "Certainly! Here's...".
 Just respond as if you are directly asking the user for the information.
 `;
-            console.log(`Sending query to LLM for natural language missing parameters request: ${routingInfo.tool.missing_parameters.join(', ')}`);
+            console.log(`Requesting missing parameters: ${routingInfo.tool.missing_parameters.join(', ')}`);
             const missingParamsResponse = await this.responseFormatter.generateResponse(missingParamsPrompt);
-            console.log('LLM response:', missingParamsResponse);
-            console.log(`--- LLM Call for Missing Parameters Complete ---\n`);
             
             this.addToMemory('assistant', missingParamsResponse);
             return missingParamsResponse;
@@ -224,15 +214,10 @@ Just respond as if you are directly asking the user for the information.
               routingInfo.tool.parameters
             );
             
-            console.log(`Tool execution result:`, result);
-            console.log(`--- MCP Server Tool Call Complete ---\n`);
+            console.log(`Tool execution complete`);
             
             // Format the response
-            console.log('\n--- LLM Call for Tool Result Formatting ---');
-            console.log(`Sending query to LLM for natural language response for tool result: ${JSON.stringify(result)}`);
             const formattedResponse = await this.responseFormatter.formatResponse(result, userInput);
-            console.log('LLM response:', formattedResponse);
-            console.log(`--- LLM Call for Tool Result Complete ---\n`);
             
             this.addToMemory('assistant', formattedResponse);
             return formattedResponse;
@@ -243,14 +228,12 @@ Just respond as if you are directly asking the user for the information.
           
         case 'list_servers':
           // List all servers
-          console.log('LLM decided to list servers');
           const serversResponse = this.listServers();
           this.addToMemory('assistant', serversResponse);
           return serversResponse;
           
         case 'server_status':
           // Get server status
-          console.log('LLM decided to check server status');
           const statusResponse = this.getServerStatus();
           this.addToMemory('assistant', statusResponse);
           return statusResponse;
@@ -261,7 +244,7 @@ Just respond as if you are directly asking the user for the information.
             throw new Error('Server ID missing for activate_server action');
           }
           
-          console.log(`LLM decided to activate server: ${routingInfo.server.id}`);
+          console.log(`Activating server: ${routingInfo.server.id}`);
           const activateResponse = this.activateServerCommand(routingInfo.server.id);
           this.addToMemory('assistant', activateResponse);
           return activateResponse;
@@ -272,7 +255,7 @@ Just respond as if you are directly asking the user for the information.
             throw new Error('Server ID missing for deactivate_server action');
           }
           
-          console.log(`LLM decided to deactivate server: ${routingInfo.server.id}`);
+          console.log(`Deactivating server: ${routingInfo.server.id}`);
           const deactivateResponse = this.deactivateServerCommand(routingInfo.server.id);
           this.addToMemory('assistant', deactivateResponse);
           return deactivateResponse;
@@ -283,7 +266,7 @@ Just respond as if you are directly asking the user for the information.
             throw new Error('Server ID missing for remove_server action');
           }
           
-          console.log(`LLM decided to remove server: ${routingInfo.server.id}`);
+          console.log(`Removing server: ${routingInfo.server.id}`);
           const deleteFiles = routingInfo.server.deleteFiles || false;
           const removeResponse = this.removeServerCommand(routingInfo.server.id, deleteFiles);
           this.addToMemory('assistant', removeResponse);
@@ -295,7 +278,7 @@ Just respond as if you are directly asking the user for the information.
             throw new Error('Server ID missing for install_server action');
           }
           
-          console.log(`LLM decided to install dependencies for server: ${routingInfo.server.id}`);
+          console.log(`Installing dependencies for server: ${routingInfo.server.id}`);
           const installResponse = await this.installServerDependenciesCommand(routingInfo.server.id);
           this.addToMemory('assistant', installResponse);
           return installResponse;
@@ -312,12 +295,10 @@ Just respond as if you are directly asking the user for the information.
       // Handle errors
       console.error('Error processing query:', error);
       
-      console.log('\n--- LLM Call for Error Response ---');
+      // Handle error more concisely
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.log(`Sending query to LLM for natural language response for error: ${errorMessage}`);
+      console.log(`Error: ${errorMessage}`);
       const errorResponse = await this.responseFormatter.formatError(error instanceof Error ? error : new Error(String(error)), userInput);
-      console.log('LLM response:', errorResponse);
-      console.log(`--- LLM Call for Error Response Complete ---\n`);
       
       // Add the error response to memory
       this.addToMemory('assistant', errorResponse);
