@@ -1,3 +1,31 @@
 {
-  "servers": []
+  "servers": [
+    {
+      "id": "calculator",
+      "name": "Calculator",
+      "description": "A server that provides mathematical operations",
+      "path": "./servers/calculator/calculator-server.js",
+      "connection": {
+        "type": "stdio",
+        "command": "node",
+        "args": []
+      },
+      "tools": []
+    },
+    {
+      "id": "filesystem",
+      "name": "Filesystem",
+      "description": "A server that provides filesystem operations",
+      "connection": {
+        "type": "stdio",
+        "command": "npx",
+        "args": [
+          "-y",
+          "@modelcontextprotocol/server-filesystem",
+          "."
+        ]
+      },
+      "tools": []
+    }
+  ]
 }
